@@ -20,6 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            "neato_tracker = neato_golf_donkey_kong.neato_tracker:main",
         ],
     },
 )
