@@ -17,15 +17,19 @@ class NeatoTracker(Node):
     def __init__(self):
         """Initialize the neator tracker"""
         super().__init__("neato_tracker")
+        self.neato_position = [0,0,0]
+        self.pixels_to_cm = 0
+
         self.camera = cv2.VideoCapture(0)
         self.cv_image = None  # the latest image from the camera
         self.binary_image = None
         self.filled_image = None
 
-        self.pub = self.create_publisher(Twist, "cmd_vel", 10)
+        self.vel_pub = self.create_publisher(Twist, "cmd_vel", 10)
 
         thread = Thread(target=self.loop_wrapper)
         thread.start()
+
 
     def loop_wrapper(self):
         """This function takes care of calling the run_loop function repeatedly.
@@ -41,9 +45,15 @@ class NeatoTracker(Node):
         else:
             rval = False
             print("camera cannot be read")
-
+        
+        # index = 0
         while rval:
             self.run_loop()
+            # if index == 50:
+            #     print("GO GO GO")
+            #     self.go_to_pixel_coord(250,250)
+            # index += 1
+            # print(index)
             time.sleep(0.1)
 
     def run_loop(self):
@@ -59,17 +69,17 @@ class NeatoTracker(Node):
             cv2.waitKey(5)
 
 
-    def go_to_point(self, desired_x, desired_y):
+    def go_to_pixel_coord(self, desired_pixel_x, desired_pixel_y):
         """
         Moves the robot to a desired 2D point using current odometry information.
 
         The robot first rotates in place to face the target, then drives straight.
 
         Args:
-            desired_x (float): Target X position.
-            desired_y (float): Target Y position.
+            desired_x (float): Target X position in PIXELS
+            desired_y (float): Target Y position in PIXELS
         """
-        current_x, current_y, current_angle = self.position
+        current_pixel_x, current_pixel_y, current_angle = self.neato_position
         
         # print("Current x is: ", current_x)
         # print("Current y is: ", current_y)
@@ -78,8 +88,13 @@ class NeatoTracker(Node):
 
         # First, we calculate the desired orientation to drive in 
         # odom gives us quanternion, not yaw (z direction)
-        x = desired_x - current_x
-        y = desired_y - current_y
+
+        # calculate x and y from PIXELS to METERS 
+        x = (desired_pixel_x - current_pixel_x) * (1/self.pixels_to_cm) * 0.01
+
+        # make y negative since down is positive 
+        y = -(desired_pixel_y - current_pixel_y) * (1/self.pixels_to_cm) * 0.01
+
 
         desired_angle = math.atan2(y, x)
         print(current_angle, desired_angle)
@@ -89,8 +104,8 @@ class NeatoTracker(Node):
         
         rotation_needed = (desired_angle - current_angle) % (2*math.pi)
 
-        angular_vel = 0.5
-        lin_velocity = 0.3
+        angular_vel = 0.3
+        lin_velocity = 0.2
 
         # then we can perform our actual rotation
         if rotation_needed < math.pi: 
@@ -105,6 +120,7 @@ class NeatoTracker(Node):
 
         # calculate needed distance and drive forward 
         distance = math.sqrt((x)**2 + (y)**2)
+        print(distance)
         self.drive(linear=lin_velocity, angular=0.0)
         time.sleep((distance / lin_velocity))
 
@@ -149,6 +165,7 @@ class NeatoTracker(Node):
         # Posted by Neeraj Madan
         # Retrieved 2025-11-05, License - CC BY-SA 4.0
         cnts = [c for c in cnts if cv2.contourArea(c) > 10000]
+        # print(len(cnts))
 
         mask = np.zeros_like(self.filled_image)
 
@@ -157,6 +174,11 @@ class NeatoTracker(Node):
             area = cv2.contourArea(contour)
             if area > 10000:
                 cv2.fillPoly(mask, [contour], 255)
+
+        if len(cnts) == 1:
+            self.pixels_to_cm = math.sqrt(cv2.contourArea(cnts[0])/1000)
+            print(self.pixels_to_cm)
+            print(self.neato_position)
 
         # Apply the mask to keep only large regions
         self.filled_image = cv2.bitwise_and(self.filled_image, mask)
@@ -176,6 +198,7 @@ class NeatoTracker(Node):
                     cy += p[0][1]
                 cx = int(cx/len(c))
                 cy = int(cy/len(c))
+                self.neato_position = [cx, cy, self.neato_position[2]]
 
                 # draw the contour and center of the shape on the image
                 cv2.drawContours(self.filled_image, [c], -1, (0, 255, 0), 2)
