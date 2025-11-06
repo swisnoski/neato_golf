@@ -84,28 +84,31 @@ class NeatoTracker(Node):
 
     def find_contour(self):
         # find contours in the thresholded image
-        cnts, _ = cv2.findContours(
+        contours, _ = cv2.findContours(
             self.filled_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
 
         # loop over the contours
-        for c in cnts:
+        for contour in contours:
             # compute the center of the contour
-            M = cv2.moments(c)
-            cX = int(M["m10"] / M["m00"])
-            cY = int(M["m01"] / M["m00"])
+            moments = cv2.moments(contour)
+            center_x = int(moments["m10"] / moments["m00"])
+            center_y = int(moments["m01"] / moments["m00"])
             # draw the contour and center of the shape on the image
-            cv2.drawContours(self.filled_image, [c], -1, (0, 255, 0), 2)
-            cv2.circle(self.filled_image, (cX, cY), 7, (255, 255, 255), -1)
+            cv2.drawContours(self.filled_image, [contour], -1, (0, 255, 0), 2)
+            cv2.circle(self.filled_image, (center_x, center_y), 7, (255, 255, 255), -1)
             cv2.putText(
                 self.filled_image,
                 "center",
-                (cX - 20, cY - 20),
+                (center_x - 20, center_y - 20),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,
                 (255, 255, 255),
                 2,
             )
+
+    def calculate_distance(self, neato_coord: tuple, ball_coord: tuple):
+        angle = np.arctan2()
 
 
 def main(args=None):
