@@ -2,14 +2,10 @@ import cv2
 import numpy as np
 
 # Initialize video
-cap = cv2.VideoCapture("./misc/two_bouncing_squares.mp4")
+cap = cv2.VideoCapture("./two_bouncing_squares.mp4")
 
 # Initialize linear filter variable
 tracks = []
-x_k = None
-x_p = None
-
-# Initialize currently tracked items
 
 
 def bbox_chw(pts):
@@ -162,6 +158,11 @@ def detect_square():
 
 
 def make_prediction(center, velocity):
+    """
+    Prediction of contour in the next iteration
+
+    Returns: (x, y)
+    """
     return center + velocity
 
 
