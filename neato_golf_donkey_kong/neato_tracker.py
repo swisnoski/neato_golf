@@ -37,7 +37,7 @@ class NeatoTracker(Node):
         issues with single threaded executors in ROS2"""
 
         cv2.namedWindow("video_window")
-        # cv2.namedWindow('binary_window')
+        cv2.namedWindow("binary_window")
         cv2.namedWindow("filtered_neato_window")
 
         if self.camera.isOpened():  # try to get the first frame
@@ -62,10 +62,11 @@ class NeatoTracker(Node):
             self.find_neato()
             self.find_contour()
             self.find_line()
+            self.find_heading()
             cv2.imshow("video_window", self.cv_image)
             cv2.imshow("canny", self.canny)
 
-            # cv2.imshow('binary_window', self.binary_image)
+            cv2.imshow("binary_window", self.binary_image)
             cv2.imshow("filtered_neato_window", self.filled_image)
 
             _, self.cv_image = self.camera.read()
@@ -155,6 +156,7 @@ class NeatoTracker(Node):
 
     def find_contour(self):
         # find contours in the thresholded image
+        AREA_CONST = 2000
         cnts, _ = cv2.findContours(
             self.filled_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
         )
@@ -162,7 +164,7 @@ class NeatoTracker(Node):
         # Source - https://stackoverflow.com/questions/42798659/how-to-remove-small-connected-objects-using-opencv
         # Posted by Neeraj Madan
         # Retrieved 2025-11-05, License - CC BY-SA 4.0
-        cnts = [c for c in cnts if cv2.contourArea(c) > 10000]
+        cnts = [c for c in cnts if cv2.contourArea(c) > AREA_CONST]
         # print(len(cnts))
 
         mask = np.zeros_like(self.filled_image)
@@ -170,7 +172,7 @@ class NeatoTracker(Node):
         # Fill only the large contours
         for contour in cnts:
             area = cv2.contourArea(contour)
-            if area > 10000:
+            if area > AREA_CONST:
                 cv2.fillPoly(mask, [contour], 255)
 
         if len(cnts) == 1:
@@ -188,13 +190,18 @@ class NeatoTracker(Node):
                 # Source - https://stackoverflow.com/questions/35247211/zerodivisionerror-python
                 # Posted by handle
                 # Retrieved 2025-11-05, License - CC BY-SA 4.0
-                cx = 0
-                cy = 0
-                for p in c:
-                    cx += p[0][0]
-                    cy += p[0][1]
-                cx = int(cx / len(c))
-                cy = int(cy / len(c))
+                M = cv2.moments(c)
+                if M["m00"] != 0:
+                    cx = int(M["m10"] / M["m00"])
+                    cy = int(M["m01"] / M["m00"])
+                else:
+                    cx = 0
+                    cy = 0
+                    for p in c:
+                        cx += p[0][0]
+                        cy += p[0][1]
+                    cx = int(cx / len(c))
+                    cy = int(cy / len(c))
                 self.neato_position = [cx, cy, self.neato_position[2]]
 
                 # draw the contour and center of the shape on the image
@@ -219,13 +226,14 @@ class NeatoTracker(Node):
             self.canny,  # Input edge image
             1,  # Distance resolution in pixels
             np.pi / 180,  # Angle resolution in radians
-            threshold=50,  # Min number of votes for valid line
-            minLineLength=3,  # Min allowed length of line
+            threshold=90,  # Min number of votes for valid line
+            minLineLength=4,  # Min allowed length of line
             maxLineGap=10,  # Max allowed gap between line for joining them
         )
 
         # Iterate over points
         if lines is not None:
+            print(f"Length: {len(lines)}")
             for points in lines:
                 # Extracted points nested in the list
                 x1, y1, x2, y2 = points[0]
@@ -236,6 +244,31 @@ class NeatoTracker(Node):
                 lines_list.append([(x1, y1), (x2, y2)])
         else:
             print("No line detected")
+
+        self.lines = lines
+
+    def find_heading(self):
+        if self.lines is None:
+            print("No line to find heading for")
+            return
+
+        if len(self.lines) == 1:
+            x1, y1, x2, y2 = self.lines[0][0]
+        else:
+            print("More than one line, unable to find heading")
+            return
+
+        cx = self.neato_position[0]
+        cy = self.neato_position[1]
+
+        slope_neato = (y2 - y1) / (x2 - x1)
+        slope_heading = -(1 / slope_neato)
+        b_heading = cy - slope_heading * cx
+        b_neato = y1 - slope_neato * x1
+        x_intersect = (b_heading - b_neato) / (slope_neato - slope_heading)
+        y_intersect = slope_neato * x_intersect + b_neato
+        angle = np.arctan2(cy - y_intersect, x_intersect - cx)
+        print(f"ANGLE: {angle}")
 
     def calculate_distance(self, neato_coord: tuple, ball_coord: tuple):
         angle = np.arctan2()
