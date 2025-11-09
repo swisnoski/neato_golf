@@ -9,6 +9,8 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String, Float32MultiArray
 import numpy as np
+from neato_golf_donkey_kong.helpers import numpy_to_multiarray, multiarray_to_numpy
+import cv2
 
 
 class Sort(Node):
@@ -19,7 +21,7 @@ class Sort(Node):
         super().__init__("sort_node")
 
         # Create a publisher that publishes to topic "/objects"
-        self.publisher = self.create_publisher(String, "/objects", 10)
+        self.publisher = self.create_publisher(Float32MultiArray, "/objects", 10)
 
         # Create a subscriber to "/bbox"
         self.bbox_sub = self.create_subscription(
@@ -34,12 +36,12 @@ class Sort(Node):
         Detect unique objects from bbox information
         """
         # Convert Float32Array object into Numpy arr
-        arr = self.multiarray_to_numpy(msg)
+        arr = multiarray_to_numpy(msg)
 
         # Parse bbox data into detections
         detections = []
-        for contour in arr:
-            detections.append((contour[0], contour[1], contour[2], contour[2]))
+        for bbox in arr:
+            detections.append((bbox[0], bbox[1], bbox[2], bbox[2]))
 
         # Initialize tracks if empty
         if len(self.tracks) == 0:
@@ -110,43 +112,19 @@ class Sort(Node):
                 }
                 self.tracks.append(new_track)
 
-        self.get_logger().info(str(self.tracks))
+        tracks_arr = np.array(
+            [
+                [track["id"], track["state"][0], track["state"][1], track["state"][2]]
+                for track in self.tracks
+            ]
+        )
+
+        # convert numpy array to Float32MultiArray
+        multi_array_msg = numpy_to_multiarray(tracks_arr)
+
+        self.publisher.publish(multi_array_msg)
 
     # ================ HELPER FUNCTIONS ================
-
-    def multiarray_to_numpy(self, msg) -> np.ndarray:
-        """
-        Convert a Float32MultiArray message back into a NumPy array.
-        """
-        # Extract sizes of each dimension (in order)
-        shape = [dim.size for dim in msg.layout.dim]
-
-        # Convert the flat data list to a numpy array
-        arr = np.array(msg.data, dtype=np.float32)
-
-        # Reshape according to the layout
-        if shape:  # Only reshape if the layout is defined
-            arr = arr.reshape(shape)
-
-        return arr
-
-    def bbox_chw(self, pts):
-        """
-        Returns
-        (cx, cy, w, h)
-            cx, cy : centre coordinates
-            w, h   : width and height
-        """
-        # min / max over the 4-point axis (-2)
-        xy_min = pts.min(axis=-2)
-        xy_max = pts.max(axis=-2)
-
-        wh = xy_max - xy_min
-        centre = (xy_min + xy_max) / 2
-
-        cx, cy = centre[..., 0], centre[..., 1]
-        w, h = wh[..., 0], wh[..., 1]
-        return cx.item(), cy.item(), w.item(), h.item()
 
     def make_prediction(self, center, velocity):
         """

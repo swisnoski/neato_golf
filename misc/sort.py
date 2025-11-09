@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Initialize video
-cap = cv2.VideoCapture("./two_bouncing_squares.mp4")
+cap = cv2.VideoCapture("./two_circles_bouncing.mp4")
 
 # Initialize linear filter variable
 tracks = []
@@ -16,15 +16,11 @@ def bbox_chw(pts):
         w, h   : width and height
     """
     # min / max over the 4-point axis (-2)
-    xy_min = pts.min(axis=-2)  # (..., 2)
-    xy_max = pts.max(axis=-2)
+    x, y, w, h = cv2.boundingRect(pts)
+    cx = x + w / 2.0
+    cy = y + h / 2.0
 
-    wh = xy_max - xy_min  # (..., 2)
-    centre = (xy_min + xy_max) / 2  # (..., 2)
-
-    cx, cy = centre[..., 0], centre[..., 1]
-    w, h = wh[..., 0], wh[..., 1]
-    return cx.item(), cy.item(), w.item(), h.item()
+    return cx, cy, w, h
 
 
 def detect_square():
@@ -58,8 +54,7 @@ def detect_square():
                 # Invalid detection
                 continue
 
-            bbox = np.array([contour[i][0] for i in range(4)])
-            cx, cy, w, h = bbox_chw(bbox)
+            cx, cy, w, h = bbox_chw(contour)
 
             detections.append((cx, cy, w, h))
 

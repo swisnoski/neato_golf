@@ -2,10 +2,12 @@ import rclpy
 from threading import Thread
 from rclpy.node import Node
 import time
-import math 
+import math
 import cv2
 import numpy as np
 from geometry_msgs.msg import Twist
+from neato_golf_donkey_kong.helpers import numpy_to_multiarray
+from std_msgs.msg import Float32MultiArray
 
 
 class NeatoTracker(Node):
@@ -17,7 +19,7 @@ class NeatoTracker(Node):
     def __init__(self):
         """Initialize the neator tracker"""
         super().__init__("neato_tracker")
-        self.neato_position = [0,0,0]
+        self.neato_position = [0, 0, 0]
         self.pixels_to_cm = 0
 
         self.camera = cv2.VideoCapture(0)
@@ -25,11 +27,12 @@ class NeatoTracker(Node):
         self.binary_image = None
         self.filled_image = None
 
+        # Create Publishers
         self.vel_pub = self.create_publisher(Twist, "cmd_vel", 10)
+        self.bbox_pub = self.create_publisher(Float32MultiArray, "bbox", 10)
 
         thread = Thread(target=self.loop_wrapper)
         thread.start()
-
 
     def loop_wrapper(self):
         """This function takes care of calling the run_loop function repeatedly.
@@ -45,7 +48,7 @@ class NeatoTracker(Node):
         else:
             rval = False
             print("camera cannot be read")
-        
+
         # index = 0
         while rval:
             self.run_loop()
@@ -60,6 +63,7 @@ class NeatoTracker(Node):
         # NOTE: only do cv2.imshow and cv2.waitKey in this function
         if not self.cv_image is None:
             self.find_neato()
+            self.find_ball()
             self.find_contour()
             cv2.imshow("video_window", self.cv_image)
             # cv2.imshow('binary_window', self.binary_image)
@@ -67,7 +71,6 @@ class NeatoTracker(Node):
 
             _, self.cv_image = self.camera.read()
             cv2.waitKey(5)
-
 
     def go_to_pixel_coord(self, desired_pixel_x, desired_pixel_y):
         """
@@ -80,53 +83,51 @@ class NeatoTracker(Node):
             desired_y (float): Target Y position in PIXELS
         """
         current_pixel_x, current_pixel_y, current_angle = self.neato_position
-        
+
         # print("Current x is: ", current_x)
         # print("Current y is: ", current_y)
         # print("Des x is: ", desired_x)
         # print("Des y is: ", desired_y)
 
-        # First, we calculate the desired orientation to drive in 
+        # First, we calculate the desired orientation to drive in
         # odom gives us quanternion, not yaw (z direction)
 
-        # calculate x and y from PIXELS to METERS 
-        x = (desired_pixel_x - current_pixel_x) * (1/self.pixels_to_cm) * 0.01
+        # calculate x and y from PIXELS to METERS
+        x = (desired_pixel_x - current_pixel_x) * (1 / self.pixels_to_cm) * 0.01
 
-        # make y negative since down is positive 
-        y = -(desired_pixel_y - current_pixel_y) * (1/self.pixels_to_cm) * 0.01
-
+        # make y negative since down is positive
+        y = -(desired_pixel_y - current_pixel_y) * (1 / self.pixels_to_cm) * 0.01
 
         desired_angle = math.atan2(y, x)
         print(current_angle, desired_angle)
 
         current_angle = current_angle % (2 * math.pi)
         desired_angle = desired_angle % (2 * math.pi)
-        
-        rotation_needed = (desired_angle - current_angle) % (2*math.pi)
+
+        rotation_needed = (desired_angle - current_angle) % (2 * math.pi)
 
         angular_vel = 0.3
         lin_velocity = 0.2
 
         # then we can perform our actual rotation
-        if rotation_needed < math.pi: 
+        if rotation_needed < math.pi:
             self.drive(linear=0.0, angular=angular_vel)
             time.sleep((rotation_needed / angular_vel))
 
-        else: 
-            rotation_needed = (2* math.pi - rotation_needed)
+        else:
+            rotation_needed = 2 * math.pi - rotation_needed
             self.drive(linear=0.0, angular=-angular_vel)
             time.sleep((rotation_needed / angular_vel))
         self.drive(linear=0.0, angular=0.0)
 
-        # calculate needed distance and drive forward 
-        distance = math.sqrt((x)**2 + (y)**2)
+        # calculate needed distance and drive forward
+        distance = math.sqrt((x) ** 2 + (y) ** 2)
         print(distance)
         self.drive(linear=lin_velocity, angular=0.0)
         time.sleep((distance / lin_velocity))
 
-        # set speed to zero 
+        # set speed to zero
         self.drive(linear=0.0, angular=0.0)
-
 
     def drive(self, linear, angular):
         """
@@ -141,7 +142,6 @@ class NeatoTracker(Node):
         msg.angular.z = angular
         self.vel_pub.publish(msg)
 
-
     def find_neato(self):
 
         self.binary_image = cv2.inRange(self.cv_image, (0, 0, 0), (120, 110, 100))
@@ -154,6 +154,35 @@ class NeatoTracker(Node):
 
         self.filled_image = self.binary_image | inv_filled_neato_frame
 
+    def find_ball(self):
+        """
+        Using camera data, find bbox of ball(s)
+        """
+        # Mask specific range of white
+        lower_white = np.array([200, 200, 200])  # Adjust these values
+        upper_white = np.array([255, 255, 255])
+        mask = cv2.inRange(self.cv_image, lower_white, upper_white)
+
+        # Find contours in mask
+        contours, hierarchy = cv2.findContours(
+            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        # Get center, width, and height from contours
+        bbox = []
+        for contour in contours:
+            if len(contour) < 4:
+                # Invalid detection
+                continue
+
+            cx, cy, w, h = self.bbox_chw(contour)
+
+            bbox.append([cx, cy, w, h])
+
+        # Convert list to Float32MultiArray msg and publish to /bbox
+        bbox_arr = np.array(bbox)
+        multiarr_msg = numpy_to_multiarray(bbox_arr)
+        self.bbox_pub.publish(multiarr_msg)
 
     def find_contour(self):
         # find contours in the thresholded image
@@ -176,13 +205,12 @@ class NeatoTracker(Node):
                 cv2.fillPoly(mask, [contour], 255)
 
         if len(cnts) == 1:
-            self.pixels_to_cm = math.sqrt(cv2.contourArea(cnts[0])/1000)
+            self.pixels_to_cm = math.sqrt(cv2.contourArea(cnts[0]) / 1000)
             print(self.pixels_to_cm)
             print(self.neato_position)
 
         # Apply the mask to keep only large regions
         self.filled_image = cv2.bitwise_and(self.filled_image, mask)
-
 
         # loop over the contours
         if cnts is not None:
@@ -196,8 +224,8 @@ class NeatoTracker(Node):
                 for p in c:
                     cx += p[0][0]
                     cy += p[0][1]
-                cx = int(cx/len(c))
-                cy = int(cy/len(c))
+                cx = int(cx / len(c))
+                cy = int(cy / len(c))
                 self.neato_position = [cx, cy, self.neato_position[2]]
 
                 # draw the contour and center of the shape on the image
@@ -212,6 +240,19 @@ class NeatoTracker(Node):
                     (0, 0, 255),
                     2,
                 )
+
+    def bbox_chw(self, pts):
+        """
+        Returns
+        (cx, cy, w, h)
+            cx, cy : centre coordinates
+            w, h   : width and height
+        """
+        x, y, w, h = cv2.boundingRect(pts)
+        cx = x + w / 2.0
+        cy = y + h / 2.0
+
+        return cx, cy, w, h
 
 
 def main(args=None):

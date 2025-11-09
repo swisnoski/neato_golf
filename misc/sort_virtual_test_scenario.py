@@ -73,8 +73,8 @@ while running:
 
     # Drawing
     screen.fill((0, 0, 0))  # Clear screen with black
-    pygame.draw.rect(screen, WHITE, square1)
-    pygame.draw.rect(screen, WHITE, square2)
+    pygame.draw.circle(screen, WHITE, (square1.center), SQUARE_SIZE)
+    pygame.draw.circle(screen, WHITE, (square2.center), SQUARE_SIZE)
 
     # Update the display
     pygame.display.flip()

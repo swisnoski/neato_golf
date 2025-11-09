@@ -9,6 +9,7 @@ import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float32MultiArray, MultiArrayDimension, MultiArrayLayout
 import numpy as np
+from neato_golf_donkey_kong.helpers import numpy_to_multiarray
 
 
 class Bbox(Node):
@@ -31,24 +32,8 @@ class Bbox(Node):
         # Test 2D Array
         my_2d_array = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=np.float32)
 
-        # Create Multiarray Message
-        multi_array_msg = Float32MultiArray()
-
-        # Set layout for Multiarray Message
-        multi_array_msg.layout.dim.append(
-            MultiArrayDimension(
-                label="rows",
-                size=my_2d_array.shape[0],
-                stride=my_2d_array.shape[1],
-            )
-        )
-        multi_array_msg.layout.dim.append(
-            MultiArrayDimension(label="cols", size=my_2d_array.shape[1], stride=1)
-        )
-        multi_array_msg.layout.data_offset = 0
-
-        # Set data for msg
-        multi_array_msg.data = my_2d_array.flatten().tolist()
+        # Convert numpy to multiarray Message
+        multi_array_msg = numpy_to_multiarray(my_2d_array)
 
         # Publish msg
         self.publisher.publish(multi_array_msg)
