@@ -42,9 +42,10 @@ def detect_square():
             break
 
         # Get bounding box
-        lower_white = np.array([215, 215, 215])  # Adjust these values as needed
-        upper_white = np.array([255, 255, 255])  # Adjust these values as needed
-        mask = cv2.inRange(frame, lower_white, upper_white)
+        lower_white = np.array([20, 100, 175])  # Adjust these values as needed
+        upper_white = np.array([50, 200, 240])
+        frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(frame_hsv, lower_white, upper_white)
         contours, hierarchy = cv2.findContours(
             mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
