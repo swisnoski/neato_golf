@@ -23,12 +23,14 @@ class NeatoTracker(Node):
         self.neato_position = [0, 0, 0]
         self.pixels_to_cm = 0
 
-        self.camera = cv2.VideoCapture(0)
+        self.camera = cv2.VideoCapture(4)
         self.cv_image = None  # the latest image from the camera
         self.binary_image = None
         self.filled_image = None
         self.canny = None
         self.balls = []
+        self.target = []
+        self.planned = False
 
         # Create Publishers
         self.vel_pub = self.create_publisher(Twist, "cmd_vel", 10)
@@ -63,7 +65,8 @@ class NeatoTracker(Node):
             self.find_heading()
             self.run_loop()
             print(self.balls)
-            if self.balls:
+            self.plan_path()
+            if self.balls and self.planned:
                 if index % 50 == 0:
                     print(self.balls)
                     print("GO GO GO")
@@ -231,7 +234,9 @@ class NeatoTracker(Node):
 
             detections.append((cx, cy, w, h))
 
-        print(detections)
+        if detections:
+            print(f"Detections: {detections}")
+            self.target = [detections[0]]
 
     def find_contour(self):
         # find contours in the thresholded image
@@ -363,8 +368,12 @@ class NeatoTracker(Node):
         self.neato_position[2] = angle
 
     def plan_path(self):
+        if not self.balls or not self.target:
+            print("No balls or no target, path not planned")
+            return
         x1, y1 = self.balls[0][0], self.balls[0][1]
-        x2, y2 = self.target[0]
+        x2, y2 = self.target[0][0], self.target[0][1]
+        print(f"x1: {x1}, x2: {x2}, y1: {y1}, y2: {y2}")
 
         slope = (y2 - y1) / (x2 - x1)
         b = y1 - slope * x1
@@ -382,6 +391,8 @@ class NeatoTracker(Node):
         y_dest = slope * x_dest + b
 
         self.path = [[x_dest, y_dest], [x2, y2]]
+        self.planned = True
+        print("PATH PLANNED")
 
         # # Create PoseArray message
         # pose_array = PoseArray()
