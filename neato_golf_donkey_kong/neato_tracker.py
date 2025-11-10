@@ -22,11 +22,12 @@ class NeatoTracker(Node):
         self.neato_position = [0, 0, 0]
         self.pixels_to_cm = 0
 
-        self.camera = cv2.VideoCapture(4)
+        self.camera = cv2.VideoCapture(0)
         self.cv_image = None  # the latest image from the camera
         self.binary_image = None
         self.filled_image = None
         self.canny = None
+        self.balls = []
 
         # Create Publishers
         self.vel_pub = self.create_publisher(Twist, "cmd_vel", 10)
@@ -50,24 +51,28 @@ class NeatoTracker(Node):
             rval = False
             print("camera cannot be read")
 
-        # index = 0
+        index = 1
         while rval:
-            self.run_loop()
-            # if index == 50:
-            #     print("GO GO GO")
-            #     self.go_to_pixel_coord(250,250)
-            # index += 1
-            # print(index)
-            time.sleep(0.1)
-
-    def run_loop(self):
-        # NOTE: only do cv2.imshow and cv2.waitKey in this function
-        if not self.cv_image is None:
             self.find_neato()
             self.find_ball()
             self.find_contour()
             self.find_line()
             self.find_heading()
+            self.run_loop()
+            print(self.balls)
+            if self.balls:
+                if index % 50 == 0:
+                    print(self.balls)
+                    print("GO GO GO")
+                    self.go_to_pixel_coord(self.balls[0][0], self.balls[0][1])
+                    # self.go_to_pixel_coord(222, 200)
+            index += 1
+            print(index)
+            time.sleep(0.1)
+
+    def run_loop(self):
+        # NOTE: only do cv2.imshow and cv2.waitKey in this function
+        if not self.cv_image is None:
             cv2.imshow("video_window", self.cv_image)
             cv2.imshow("canny", self.canny)
 
@@ -126,7 +131,7 @@ class NeatoTracker(Node):
         self.drive(linear=0.0, angular=0.0)
 
         # calculate needed distance and drive forward
-        distance = math.sqrt((x) ** 2 + (y) ** 2)
+        distance = math.sqrt((x) ** 2 + (y) ** 2) -.1
         print(distance)
         self.drive(linear=lin_velocity, angular=0.0)
         time.sleep((distance / lin_velocity))
@@ -164,7 +169,7 @@ class NeatoTracker(Node):
         Using camera data, find bbox of ball(s)
         """
         # Mask specific range of white
-        lower_white = np.array([200, 200, 200])  # Adjust these values
+        lower_white = np.array([220, 220, 220])  # Adjust these values
         upper_white = np.array([255, 255, 255])
         mask = cv2.inRange(self.cv_image, lower_white, upper_white)
 
@@ -175,6 +180,7 @@ class NeatoTracker(Node):
 
         # Get center, width, and height from contours
         bbox = []
+        self.balls = []
         for contour in contours:
             if len(contour) < 4:
                 # Invalid detection
@@ -183,6 +189,13 @@ class NeatoTracker(Node):
             cx, cy, w, h = self.bbox_chw(contour)
 
             bbox.append([cx, cy, w, h])
+            self.balls.append([cx,cy])
+        
+  
+            cv2.circle(self.cv_image, (int(cx), int(cy)), 7, (0, 255, 255), -1)
+
+        
+        
 
         # Convert list to Float32MultiArray msg and publish to /bbox
         bbox_arr = np.array(bbox)
@@ -289,10 +302,9 @@ class NeatoTracker(Node):
                 # On the original image
                 cv2.line(self.cv_image, (x1, y1), (x2, y2), (255, 0, 0), 3)
                 # Maintain a simples lookup list for points
-                lines_list.append([(x1, y1), (x2, y2)])
+                lines_list.append([(x1, y1), (x2, y2)]) 
         else:
             print("No line detected")
-
         self.lines = lines
 
     def find_heading(self):
@@ -317,6 +329,7 @@ class NeatoTracker(Node):
         y_intersect = slope_neato * x_intersect + b_neato
         angle = np.arctan2(cy - y_intersect, x_intersect - cx)
         print(f"ANGLE: {angle}")
+        self.neato_position[2] = angle
 
     def calculate_distance(self, neato_coord: tuple, ball_coord: tuple):
         angle = np.arctan2()
