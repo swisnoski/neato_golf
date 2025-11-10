@@ -44,7 +44,7 @@ class Sort(Node):
             detections.append((bbox[0], bbox[1], bbox[2], bbox[2]))
 
         # Initialize tracks if empty
-        if len(self.tracks) == 0:
+        if len(self.tracks) == 0 and len(detections) != 0:
             self.tracks.append(
                 {
                     "id": 1,

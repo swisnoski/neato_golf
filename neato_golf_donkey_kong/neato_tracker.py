@@ -65,6 +65,7 @@ class NeatoTracker(Node):
         if not self.cv_image is None:
             self.find_neato()
             self.find_ball()
+            self.find_target()
             self.find_contour()
             self.find_line()
             self.find_heading()
@@ -188,6 +189,36 @@ class NeatoTracker(Node):
         bbox_arr = np.array(bbox)
         multiarr_msg = numpy_to_multiarray(bbox_arr)
         self.bbox_pub.publish(multiarr_msg)
+
+    def find_target(self):
+        """
+        Using camera data, find bbox of final ball location target
+        """
+        # Convert to HSV
+        lower_white = np.array([20, 100, 175])  # Adjust these values as needed
+        upper_white = np.array([50, 200, 240])
+        frame_hsv = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
+
+        # Get mask
+        mask = cv2.inRange(frame_hsv, lower_white, upper_white)
+
+        # Find contours in mask
+        contours, hierarchy = cv2.findContours(
+            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        # Loop through individual contours
+        detections = []
+        for contour in contours:
+            if len(contour) < 4:
+                # Invalid detection
+                continue
+
+            cx, cy, w, h = self.bbox_chw(contour)
+
+            detections.append((cx, cy, w, h))
+
+        print(detections)
 
     def find_contour(self):
         # find contours in the thresholded image
