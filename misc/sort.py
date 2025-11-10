@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # Initialize video
-cap = cv2.VideoCapture("./two_circles_bouncing.mp4")
+cap = cv2.VideoCapture(4)
 
 # Initialize linear filter variable
 tracks = []
@@ -42,7 +42,7 @@ def detect_square():
             break
 
         # Get bounding box
-        lower_white = np.array([200, 200, 200])  # Adjust these values as needed
+        lower_white = np.array([215, 215, 215])  # Adjust these values as needed
         upper_white = np.array([255, 255, 255])  # Adjust these values as needed
         mask = cv2.inRange(frame, lower_white, upper_white)
         contours, hierarchy = cv2.findContours(
@@ -58,8 +58,10 @@ def detect_square():
 
             detections.append((cx, cy, w, h))
 
+        print(detections)
+
         # Initialize tracks if empty
-        if len(tracks) == 0:
+        if len(tracks) == 0 and len(detections) != 0:
             tracks.append(
                 {"id": 1, "state": np.array([cx, cy, w, 1, 0, 0]), "missed_frames": 0}
             )
