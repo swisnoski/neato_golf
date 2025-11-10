@@ -8,6 +8,7 @@ import numpy as np
 from geometry_msgs.msg import Twist
 from neato_golf_donkey_kong.helpers import numpy_to_multiarray
 from std_msgs.msg import Float32MultiArray
+from geometry_msgs.msg import PoseArray, Pose, Point, Quaternion
 
 
 class NeatoTracker(Node):
@@ -22,15 +23,17 @@ class NeatoTracker(Node):
         self.neato_position = [0, 0, 0]
         self.pixels_to_cm = 0
 
-        self.camera = cv2.VideoCapture(4)
+        self.camera = cv2.VideoCapture(0)
         self.cv_image = None  # the latest image from the camera
         self.binary_image = None
         self.filled_image = None
         self.canny = None
+        self.balls = []
 
         # Create Publishers
         self.vel_pub = self.create_publisher(Twist, "cmd_vel", 10)
         self.bbox_pub = self.create_publisher(Float32MultiArray, "bbox", 10)
+        self.waypoints_pub = self.create_publisher(PoseArray, "waypoints", 10)
 
         thread = Thread(target=self.loop_wrapper)
         thread.start()
@@ -50,25 +53,31 @@ class NeatoTracker(Node):
             rval = False
             print("camera cannot be read")
 
-        # index = 0
+        index = 1
         while rval:
-            self.run_loop()
-            # if index == 50:
-            #     print("GO GO GO")
-            #     self.go_to_pixel_coord(250,250)
-            # index += 1
-            # print(index)
-            time.sleep(0.1)
-
-    def run_loop(self):
-        # NOTE: only do cv2.imshow and cv2.waitKey in this function
-        if not self.cv_image is None:
             self.find_neato()
             self.find_ball()
             self.find_target()
             self.find_contour()
             self.find_line()
             self.find_heading()
+            self.run_loop()
+            print(self.balls)
+            if self.balls:
+                if index % 50 == 0:
+                    print(self.balls)
+                    print("GO GO GO")
+                    # self.go_to_pixel_coord(self.balls[0][0], self.balls[0][1])
+                    self.go_to_pixel_coord(self.path[0][0], self.path[0][1])
+                    self.go_to_pixel_coord(self.path[1][0], self.path[1][1])
+                    # self.go_to_pixel_coord(222, 200)
+            index += 1
+            print(index)
+            time.sleep(0.1)
+
+    def run_loop(self):
+        # NOTE: only do cv2.imshow and cv2.waitKey in this function
+        if not self.cv_image is None:
             cv2.imshow("video_window", self.cv_image)
             cv2.imshow("canny", self.canny)
 
@@ -127,7 +136,7 @@ class NeatoTracker(Node):
         self.drive(linear=0.0, angular=0.0)
 
         # calculate needed distance and drive forward
-        distance = math.sqrt((x) ** 2 + (y) ** 2)
+        distance = math.sqrt((x) ** 2 + (y) ** 2) - 0.1
         print(distance)
         self.drive(linear=lin_velocity, angular=0.0)
         time.sleep((distance / lin_velocity))
@@ -165,7 +174,7 @@ class NeatoTracker(Node):
         Using camera data, find bbox of ball(s)
         """
         # Mask specific range of white
-        lower_white = np.array([200, 200, 200])  # Adjust these values
+        lower_white = np.array([220, 220, 220])  # Adjust these values
         upper_white = np.array([255, 255, 255])
         mask = cv2.inRange(self.cv_image, lower_white, upper_white)
 
@@ -176,6 +185,7 @@ class NeatoTracker(Node):
 
         # Get center, width, and height from contours
         bbox = []
+        self.balls = []
         for contour in contours:
             if len(contour) < 4:
                 # Invalid detection
@@ -184,6 +194,9 @@ class NeatoTracker(Node):
             cx, cy, w, h = self.bbox_chw(contour)
 
             bbox.append([cx, cy, w, h])
+            self.balls.append([cx, cy])
+
+            cv2.circle(self.cv_image, (int(cx), int(cy)), 7, (0, 255, 255), -1)
 
         # Convert list to Float32MultiArray msg and publish to /bbox
         bbox_arr = np.array(bbox)
@@ -323,7 +336,6 @@ class NeatoTracker(Node):
                 lines_list.append([(x1, y1), (x2, y2)])
         else:
             print("No line detected")
-
         self.lines = lines
 
     def find_heading(self):
@@ -348,9 +360,47 @@ class NeatoTracker(Node):
         y_intersect = slope_neato * x_intersect + b_neato
         angle = np.arctan2(cy - y_intersect, x_intersect - cx)
         print(f"ANGLE: {angle}")
+        self.neato_position[2] = angle
 
-    def calculate_distance(self, neato_coord: tuple, ball_coord: tuple):
-        angle = np.arctan2()
+    def plan_path(self):
+        x1, y1 = self.balls[0][0], self.balls[0][1]
+        x2, y2 = self.target[0]
+
+        slope = (y2 - y1) / (x2 - x1)
+        b = y1 - slope * x1
+
+        # Calculate unit vector in direction of the line
+        length = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+        unit_x = (x2 - x1) / length
+
+        shift_x = 10 * unit_x  # Calculate shift of 10 units along the line
+
+        if x2 > x1:
+            x_dest = x1 - shift_x
+        else:
+            x_dest = x1 + shift_x
+        y_dest = slope * x_dest + b
+
+        self.path = [[x_dest, y_dest], [x2, y2]]
+
+        # # Create PoseArray message
+        # pose_array = PoseArray()
+        # pose_array.header.frame_id = "map"  # or appropriate frame
+        # pose_array.header.stamp = self.get_clock().now().to_msg()
+
+        # # First pose: x_dest, y_dest, 0
+        # pose1 = Pose()
+        # pose1.position = Point(x=float(x_dest), y=float(y_dest), z=0.0)
+        # # pose1.orientation = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+
+        # # Second pose: x2, y2, 0
+        # pose2 = Pose()
+        # pose2.position = Point(x=float(x2), y=float(y2), z=0.0)
+        # # pose2.orientation = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
+
+        # pose_array.poses = [pose1, pose2]
+
+        # self.waypoints_pub.publish(pose_array)
 
 
 def main(args=None):
