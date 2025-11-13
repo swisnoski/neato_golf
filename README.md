@@ -1,17 +1,3 @@
-# RUBRIC: 
-
-Writeup (Due 11/11 at 7PM)Permalink
-
-In your code package create a README.md file to hold your project writeup. Your writeup should touch on the following topics. We expect this writeup to be done in such a way that you are proud to include it as part of your professional portfolio. As such, please make sure to write the report so that it is understandable to an external audience. Make sure to add pictures to your report, links to Youtube videos, embedded animated Gifs (these can be recorded with the tool peek).
-
-    What was the goal of your project? Since everyone is doing a different project, you will have to spend some time setting this context.
-    How did you solve the problem (i.e., what methods / algorithms did you use and how do they work)? As above, since not everyone will be familiar with the algorithms you have chosen, you will need to spend some xtime explaining what you did and how everything works.
-    Describe a design decision you had to make when working on your project and what you ultimately did (and why)? These design decisions could be particular choices for how you implemented some part of an algorithm or perhaps a decision regarding which of two external packages to use in your project.
-    What if any challenges did you face along the way?
-    What would you do to improve your project if you had more time?
-    Did you learn any interesting lessons for future robotic programming projects? These could relate to working on robotics projects in teams, working on more open-ended (and longer term) problems, or any other relevant topic.
-
-# DRAFT WRITEUP
 # Neato Golf (ft. Donkey Kong)
 ### Bill Le, Oscar Bao, Sam Wisnoski
 
@@ -74,6 +60,10 @@ TBD after we finalize code
 
 ### Calculating the Neato Heading: 
 One major design decision we faced was how to determine the Neato’s heading from soley the camera feed. When first approaching this problem, we considered several options: attaching an apriltag to the robot, using PID control to direct it to each location, or (likely the easiest solution) just using odom data. However, our project goals including not relying on the information from the sensors of the robot and using only CV as much as possible. Since we already needed to get a contour of our Neato in order to find the center, we figured we were more than capable of also finding the heading. 
+
+<p align="center">
+  <img src="media/heading.jpg" alt="Calculation from heading given contour" width="600">
+</p>
 
 To do this, we decided to use OpenCV’s Hough Line Transform (thanks, Image Processing!) to detect the main line along the Neato’s body from the contour image. Once that line was found, we could calculate its slope and use a bit of algebraic geometry to determine the robot’s heading relative to its center point. Suprisingly, this took us a bit of time to get just right; trying to recall information about the law of sines and how to find the intersection of a line. But ultimately, this approach allowed us to estimate the Neato’s orientation entirely from visual information. As described in our goals, we were able to track both the position and heading of the Neato using only the camera feed, keeping the setup simple, self-contained, and true to the spirit of Donkey Kong.
 
