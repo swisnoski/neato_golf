@@ -54,17 +54,31 @@ The `neato_tracker` node uses two concurrent threads to handle path planning and
 
 Specifically, our main loop consists of a sequence of modular functions each performing a specific task, together they make up the entirety of computer vision processing and calculation of waypoints. We will go over each function in both loops, and unless otherwise noted, they will be main loop functions.
 
+<p align="center">
+  <img src="media/technical_approach.jpg" alt="Our Technical Approach" width="700">
+</p>
+
 #### `find_neato()`, `find_ball()`, and `find_target()`
 
 These three functions form the core of our object detection pipeline, each responsible for identifying one of the three critical elements in our system: the Neato, the golf ball(s), and the target. Each function takes in the raw camera frame and applies specific color filtering techniques tailored to the visual characteristics of its target object.
 
 `find_neato()` uses a dark color range (blacks and dark grays) to identify the Neato's body in the frame. After applying the initial color filter, it employs a flood fill algorithm starting from the image borders to fill everything *outside* the Neato's boundary. By inverting this filled region and combining it with the original binary mask, we isolate just the Neato's filled silhouette, which becomes crucial for subsequent contour detection and heading calculation.
 
+<p align="center">
+  <img src="media/raw_feed.jpg" alt="Raw Image" width="300">
+  <img src="media/binary_feed.jpg" alt="Binary Image" width="300">
+  <img src="media/filled_feed.jpg" alt="Filled Image" width="300">
+</p>
+
 `find_ball()` targets white-colored objects in the frame using RGB thresholding, then identifies contours to locate potential golf balls. For each valid detection (contours with at least 4 points), it calculates the bounding box and center coordinates, which are stored in a list and published to the SORT node via ROS for tracking. Similarly, `find_target()` converts the frame to HSV color space and filters for a specific yellow/orange range to detect our target, storing its coordinates for path planning. Both functions draw visual markers on the image for debugging purposes.
 
 #### `find_contour()`
 
 After isolating the Neato in the binary image through `find_neato()`, this function extracts the actual contour of the robot and calculates its center point, which serves as the robot's position in our coordinate system. The function filters out small noise artifacts by only keeping contours with an area greater than a set threshold, ensuring we're detecting the actual Neato rather than shadows or floor imperfections.
+
+<p align="center">
+  <img src="media/contour_feed.jpg" alt="Contour of Neato" width="300">
+</p>
 
 Using OpenCV's moments calculation, the function computes the center of mass of the Neato's contour. This provides an accurate x,y coordinate for the robot's position in the pixel space. Additionally, the function calculates a scaling factor (`pixels_to_cm`) based on the Neato's known physical size, which allows us to convert between pixel coordinates and real-world distances for movement planning. This scaling factor is crucial for translating our pixel-based detections into meaningful motor commands.
 
