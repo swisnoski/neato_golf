@@ -104,5 +104,9 @@ One last potential improvement will be to fine-tune our detection of the objects
 
 ## Conclusion:  
 ### How It Went:
+You line up the winning shot, sweat dripping down your forehead. You glance over at Donkey Kong, who is smiling confidently while staring you down. You smile back, for you know you're going to win. You swing, the ball flying 180 yards and landing on the green. It rolls. It rolls a little further. It looks like it's about to stop... but suddenly, miraculously, it keeps moving forward! Directly into the hole! It's a hole in one! You've beaten the reigning champion, forever sementing your place in the U.S. Golf Hall of Fame. 
+
+Overall, the project went quite well. We met each of our learning goals while having fun with the project and working well as a team. We were able to achieve reliable ball and target detection, consistent Neato tracking, and partial integration of the SORT algorithm with motion control. As with all personally directed projects, we wish we had more time to improve the project, but the core objective of pushing a golf ball into a target (using only computer vision!) was a success.
 
 ### Lessons Learned: 
+Throughout this project, we were able to better our technical skills regarding images as data, image processing, the OpenCV library, multithreaded systems, the SORT algorithm, basic algebra and many other key robotics ideas. In debugging, we learned how to balance modularity and full integration, and have learned a key lesson about how to better scope a project timeline (hint: don't wait until last minute to integrate). We also learned the importance of testing early, especially with real-world conditions, since small environmental changes can be difficult to manage. And finally, as always, this project reinforced our collaboration, our problem-solving skills, and our collective love of Donkey Kong. 
