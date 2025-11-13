@@ -110,6 +110,74 @@ Once properly oriented, the function converts the pixel distance to real-world m
 
 ### `SORT` node:  
 
+The SORT algorithm is a lightweight tracking method that associates object detections across frames, assigning each object a unique ID for continuous tracking. It’s fast, simple, and widely used in real-time computer vision applications.
+
+#### Step 1: Detection
+
+In this implementation, object detection is performed using OpenCV’s color segmentation. Each video frame is captured from the webcam and converted to the HSV color space, which allows for more robust color thresholding.
+
+A binary mask is created using `cv2.inRange()` with the lower_white and upper_white bounds. These define the HSV color range of the target object; in this case, likely a light-colored or white square. Once the mask is generated, `cv2.findContours()` locates continuous shapes corresponding to detected regions.
+
+For each contour, the code computes a bounding box using `cv2.boundingRect()`, from which we extract the center coordinates (cx, cy), width (w), and height (h) via the helper function we implemented, `bbox_chw()`.
+
+This step’s output (detections) becomes the foundation for initializing new objects or updating existing ones. If no detections are found, the algorithm will rely solely on predictions from the previous frame.
+
+#### Step 2: Initialization
+
+Once detections are available, the tracker initializes new objects when no existing ones exist. This is handled by a simple conditional block:
+
+```
+if len(tracks) == 0 and len(detections) != 0:
+    tracks.append({
+        "id": 1,
+        "state": np.array([cx, cy, w, 1, 0, 0]),
+        "missed_frames": 0
+    })
+```
+
+Initially, the velocity components are zero since there’s no motion history yet. As the object continues to be detected, its velocity will be updated from frame to frame.
+
+This process defines how new objects “enter” the tracking system. Unlike full SORT, which uses a Kalman filter to estimate motion uncertainty, this lightweight implementation manually tracks the position and velocity directly. It’s simpler but still captures linear motion effectively.
+
+#### Step 3: Prediction
+
+Before matching with new detections, each active tracker predicts where its object will move next. This is done using the function:
+
+```
+def make_prediction(center, velocity):
+    return center + velocity
+```
+
+This approach is computationally lightweight, allowing real-time performance without matrix multiplications or noise modeling. Although it lacks the probabilistic correction of a Kalman filter, it performs well when object motion is smooth and frame rates are high.
+
+Prediction ensures that even if a detection is momentarily missed, the tracker can still estimate where the object should be. This predicted position is crucial for the next step: overlap-based data association, where predicted tracks are matched to current detections.
+
+#### Step 4: Overlap
+
+Once predictions are available, the algorithm determines which detections correspond to which objects using a simple bounding box overlap test.
+
+For each predicted track, the code checks all detections to find the one with the highest overlap using helper function, `bbox_overlap()`. This function computes the intersection area between two bounding boxes:
+
+```
+overlap_area = (x_right - x_left) * (y_bottom - y_top)
+```
+
+If boxes don’t overlap, it returns zero. Each detection can only be assigned to one track (assigned_detections ensures this). A detection is assigned to object if it has the highest overlap area.
+
+If no detection matches a track, the missed_frames counter increments, indicating a possible occlusion or disappearance.
+
+#### Step 5: Creating new objects
+
+After all matches are processed, the code checks for unmatched detections, objects that didn’t overlap with any predicted track. These detections are assumed to be new objects entering the scene, so new trackers are created for them
+
+This ensures that every visible object receives a tracker, maintaining full coverage of the scene. Each new track starts with zero velocity, which will be updated in subsequent frames once motion is observed.
+
+#### Step 5: Removing retired objects
+
+The final part of the loop manages track lifecycle, specifically, retiring tracks when they are no longer detected. Tracks that fail to match any detection for 10 consecutive frames are removed.
+
+This ensures that lost or irrelevant objects (for example, those leaving the camera’s view) don’t clutter the active tracking list. The missed_frames counter thus acts as a buffer, allowing objects to briefly leave the camera view without immediately deleting a track.
+
 
 ## Design Decisions:   
 
