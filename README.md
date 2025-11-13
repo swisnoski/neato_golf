@@ -81,9 +81,14 @@ To do this, we decided to use OpenCV’s Hough Line Transform (thanks, Image Pro
 ### Itegrating SORT with Path Planning: 
 
 
-## Challenges:   
+## Challenges & Limitiations:   
+We had a few small hiccups in our project, mostly due to variations in enviornment, and one bigger challenge related to system integration. 
 
-## Limitations & Potential Improvements:   
+Let's start with the smaller challenges, where most of our limitations come from. When setting up and testing out our camera for the first time, we noticed that we only got a few feet in 
+
+And now, moving onto system integration. Learning from past projects, we decided to go with a more modular approach to our system, defining each part (neato detection, ball/target detection, SORT, driving the neato) individually before integrating fully. We hoped that this would allow us to better test/debug our system and prevent frustration when an error pops up and we have no clue where it's coming from. Our strategy did largely mitigate this problem, but vastly underestimated the extra time it would take to properly implement each leg of the project together, especially when it came to SORT and path planning. As we built out the `neato_tracker` node, we had a simple linear drive function that would first turn the neato, then drive it forward to reach it's location. While this worked, it completely undermined the SORT algorithm, relying on sleeping the neato for a certain amount of time based on the velocity and travel distance. While it drove forward, regardless of how well SORT was tracking the ball, we couldn't modify the neato trajectory. To solve this problem, we... 
+
+## Potential Improvements:   
 
 ## Conclusion:  
 ### How It Went:
