@@ -78,15 +78,21 @@ One major design decision we faced was how to determine the Neato’s heading fr
 To do this, we decided to use OpenCV’s Hough Line Transform (thanks, Image Processing!) to detect the main line along the Neato’s body from the contour image. Once that line was found, we could calculate its slope and use a bit of algebraic geometry to determine the robot’s heading relative to its center point. Suprisingly, this took us a bit of time to get just right; trying to recall information about the law of sines and how to find the intersection of a line. But ultimately, this approach allowed us to estimate the Neato’s orientation entirely from visual information. As described in our goals, we were able to track both the position and heading of the Neato using only the camera feed, keeping the setup simple, self-contained, and true to the spirit of Donkey Kong.
 
 
-### Itegrating SORT with Path Planning: 
+### Integrating SORT with Path Planning: 
 
 
 ## Challenges & Limitiations:   
 We had a few small hiccups in our project, mostly due to variations in enviornment, and one bigger challenge related to system integration. 
 
-Let's start with the smaller challenges, where most of our limitations come from. When setting up and testing out our camera for the first time, we noticed that we only got a few feet in 
+Let's start with the smaller challenges, where most of our limitations come from. When setting up and testing out our camera for the first time, we noticed that we could only got a few feet of floor space to drive around it, even with the camera suspended ~7 feet off the ground. Additionally, we noticed that our initial detection functions were very finicky with light, and would only work properly is we placed the camera over areas with less glare and no floor traps. We were able to solve some of these problems by filtering out smaller detected shapes and narrowing our ranges of detection, but it still functions much worse in dim lighting or certain areas of the floor. As for the amount of floor space detected, we tried a few different setups to limited success. My favorite setup is pictured below. 
 
-And now, moving onto system integration. Learning from past projects, we decided to go with a more modular approach to our system, defining each part (neato detection, ball/target detection, SORT, driving the neato) individually before integrating fully. We hoped that this would allow us to better test/debug our system and prevent frustration when an error pops up and we have no clue where it's coming from. Our strategy did largely mitigate this problem, but vastly underestimated the extra time it would take to properly implement each leg of the project together, especially when it came to SORT and path planning. As we built out the `neato_tracker` node, we had a simple linear drive function that would first turn the neato, then drive it forward to reach it's location. While this worked, it completely undermined the SORT algorithm, relying on sleeping the neato for a certain amount of time based on the velocity and travel distance. While it drove forward, regardless of how well SORT was tracking the ball, we couldn't modify the neato trajectory. To solve this problem, we... 
+<p align="center">
+  <img src="media/neato_setup.jpg" alt="Our camera setup to maximize height while still being able to connect our computer" width="400">
+</p>
+
+And now, moving onto system integration. Learning from past projects, we decided to go with a more modular approach to our system, defining each part (neato detection, ball/target detection, SORT, driving the neato) individually before integrating fully. We hoped that this would allow us to better test/debug our system and prevent frustration when an error pops up and we have no clue where it's coming from. Our strategy did largely mitigate this problem, but vastly underestimated the extra time it would take to properly implement each leg of the project together, especially when it came to SORT and path planning. 
+
+As we built out the `neato_tracker` node, we had a simple linear drive function that would first turn the neato, then drive it forward (via `time.sleep`) to reach it's location. While this worked, it undermined the SORT algorithm, which tracks the balls in realtime. While it drove forward, regardless of how well SORT was tracking the ball, we couldn't modify the neato trajectory. In the final system, SORT still handled multi-ball tracking and switching balls once the target was reached, but we weren’t able to fully leverage its continuous tracking capabilities.
 
 ## Potential Improvements:
 
