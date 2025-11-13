@@ -56,33 +56,23 @@ Specifically, our main loop consists of a sequence of modular functions each per
 
 #### `find_neato()`, `find_ball()`, and `find_target()`
 
-#### `find_contour()`
-
-#### `find_line()`
-
-#### `find_heading()`
-
-#### `plan_path()`
-
-#### `find_neato()`, `find_ball()`, and `find_target()`
-
 These three functions form the core of our object detection pipeline, each responsible for identifying one of the three critical elements in our system: the Neato, the golf ball(s), and the target. Each function takes in the raw camera frame and applies specific color filtering techniques tailored to the visual characteristics of its target object.
 
 `find_neato()` uses a dark color range (blacks and dark grays) to identify the Neato's body in the frame. After applying the initial color filter, it employs a flood fill algorithm starting from the image borders to fill everything *outside* the Neato's boundary. By inverting this filled region and combining it with the original binary mask, we isolate just the Neato's filled silhouette, which becomes crucial for subsequent contour detection and heading calculation.
 
-`find_ball()` targets white-colored objects in the frame using RGB thresholding, then identifies contours to locate potential golf balls. For each valid detection (contours with at least 4 points), it calculates the bounding box and center coordinates, which are stored in a list and published to the SORT node via ROS for tracking. Similarly, `find_target()` converts the frame to HSV color space and filters for a specific yellow/orange range to detect our target hole, storing its coordinates for path planning. Both functions draw visual markers on the image for debugging purposes.
+`find_ball()` targets white-colored objects in the frame using RGB thresholding, then identifies contours to locate potential golf balls. For each valid detection (contours with at least 4 points), it calculates the bounding box and center coordinates, which are stored in a list and published to the SORT node via ROS for tracking. Similarly, `find_target()` converts the frame to HSV color space and filters for a specific yellow/orange range to detect our target, storing its coordinates for path planning. Both functions draw visual markers on the image for debugging purposes.
 
 #### `find_contour()`
 
-After isolating the Neato in the binary image through `find_neato()`, this function extracts the actual contour of the robot and calculates its center point, which serves as the robot's position in our coordinate system. The function filters out small noise artifacts by only keeping contours with an area greater than 2000 square pixels, ensuring we're detecting the actual Neato rather than shadows or floor imperfections.
+After isolating the Neato in the binary image through `find_neato()`, this function extracts the actual contour of the robot and calculates its center point, which serves as the robot's position in our coordinate system. The function filters out small noise artifacts by only keeping contours with an area greater than a set threshold, ensuring we're detecting the actual Neato rather than shadows or floor imperfections.
 
-Using OpenCV's moments calculation, the function computes the centroid (center of mass) of the Neato's contour. This provides an accurate x,y coordinate for the robot's position in the pixel space. Additionally, the function calculates a scaling factor (`pixels_to_cm`) based on the Neato's known physical size (~1000 cm²), which allows us to convert between pixel coordinates and real-world distances for movement planning. This scaling factor is crucial for translating our pixel-based detections into meaningful motor commands.
+Using OpenCV's moments calculation, the function computes the center of mass of the Neato's contour. This provides an accurate x,y coordinate for the robot's position in the pixel space. Additionally, the function calculates a scaling factor (`pixels_to_cm`) based on the Neato's known physical size, which allows us to convert between pixel coordinates and real-world distances for movement planning. This scaling factor is crucial for translating our pixel-based detections into meaningful motor commands.
 
 #### `find_line()`
 
-To determine the Neato's heading, we first need to identify the prominent straight edge along its body. This function applies Canny edge detection to the filled Neato image, then uses the Hough Line Transform (specifically `HoughLinesP`) to detect line segments in the edge-detected image. The threshold parameters are carefully tuned to detect only the main straight edge of the Neato while ignoring noise and minor edges.
+To determine the Neato's heading, we first need to identify the prominent straight edge along its body. This function applies Canny edge detection to the filled Neato image, then uses the Hough Line Transform to detect line segments in the edge-detected image. The threshold parameters are carefully tuned to detect only the main straight edge of the Neato while ignoring noise and minor edges.
 
-The function stores the endpoints of detected line segments and draws them on the display image for visual verification. By setting a relatively high threshold (90 votes) and allowing small gaps between line segments (10 pixels), we ensure that only substantial, continuous lines—like the Neato's straight edge—are detected, rather than fragmentary edges from shadows or texture variations.
+The function stores the endpoints of detected line segments. By setting a relatively high threshold and allowing small gaps between line segments, we ensure that only substantial, continuous lines like the Neato's straight edge are detected, rather than fragmentary edges from shadows or texture variations.
 
 #### `find_heading()`
 
@@ -94,7 +84,7 @@ Using the perpendicular slope and the Neato's center point from `find_contour()`
 
 The path planning function calculates a two-waypoint trajectory that positions the Neato to successfully push the golf ball into the target. Given the ball's coordinates (from SORT) and the target's coordinates (from `find_target()`), it first calculates the slope of the line connecting these two points, which represents the ideal push direction.
 
-To ensure the Neato has adequate space to align itself before contacting the ball, the function shifts the first waypoint 25 pixels backwards along the ball-to-target line. This creates a "staging position" where the Neato can orient itself perpendicular to the push direction. The second waypoint is set directly at the target location, meaning the Neato will drive through the ball and push it toward the hole. The function sets a `planned` flag to true once the path is calculated, signaling to the driver thread that it can begin execution. This approach simplifies the control logic while ensuring the ball is pushed in the correct direction with sufficient momentum.
+To ensure the Neato has adequate space to align itself before contacting the ball, the function shifts the first waypoint an arbitrary amount of pixels backwards along the ball-to-target line. This creates a "staging position" where the Neato can orient itself perpendicular to the push direction. The second waypoint is set directly at the target location, meaning the Neato will drive through the ball and push it toward the target. The function sets a `planned` flag to true once the path is calculated, signaling to the driver thread that it can begin execution. This approach simplifies the control logic while ensuring the ball is pushed in the correct direction with sufficient momentum.
 
 ### Final Result:   
 
