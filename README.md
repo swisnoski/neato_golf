@@ -36,15 +36,21 @@ The goal of our project was to design and implement an autonomous robotic system
 * We wanted to practice working in a (relatively) controlled enviornment.
 * We wanted to implement an algorithm to allow detection of multiple golf balls at once. 
   
-With the above constraints in mind, our solution is as follows: using a bird's-eye-view camera, our CV algorithm identifies the ball, the hole, and the Neato robot’s position (x, y, and heading). Then, with a SORT tracking algorithm and a simple path planner, it directs the robot to nudge the ball into the target. In essence, our project takes the final shot of golf out of your hands, and puts it into the more than capable end-effector of our robot. As long as you can get your ball to that green, you're golden... as golden as a golden banana. 
+With the above constraints in mind, our solution is as follows: using a bird's-eye-view camera, our CV algorithm identifies the ball, the hole, and the Neato robot’s position (`x`, `y`, and `heading`). Then, with a SORT tracking algorithm and a simple path planner, it directs the robot to nudge the ball into the target. In essence, our project takes the final shot of golf out of your hands, and puts it into the more than capable end-effector of our robot. As long as you can get your ball to that green, you're *golden*... as golden as a golden banana. 
 
 Not convinced that Neato Golf will work for your needs? Videos of partial and full implementations can be found here:
-* Using SORT to track multiple balls: https://drive.google.com/file/d/1GgMcts5O3wgErzWKcIJOUZaHiJTX-XAM/view?resourcekey 
-* Video of Neato Golf successfully getting a "hole in one": https://drive.google.com/file/d/1KUzkdHAsaL157LKygHP7LB2IOXnDMdcI/view?resourcekey 
+* [Using SORT to track multiple balls](https://drive.google.com/file/d/1GgMcts5O3wgErzWKcIJOUZaHiJTX-XAM/view?resourcekey)
+* [Video of Neato Golf successfully getting a "hole in one"](https://drive.google.com/file/d/1KUzkdHAsaL157LKygHP7LB2IOXnDMdcI/view?resourcekey)
 
 
-### Individual Learning Goals:   
-#### Oscar's learning goals: 
+### Individual Learning Goals:
+While we each had different goals, overall, we were all very invested in achieving a nontrivial task, i.e. driving a Neato
+to capture an object and deliver it to a target, with classic computer vision methods and chaining them together. 
+#### Oscar's learning goals:
+For this project, I was very interested in converting the data from the software world into some concrete actions
+in real life. I've done my time with the `CV2` package by its own, and it was very fun, and challenging, building a data
+pipeline that interacts with the `CV2` package. At the same time, I wanted to do something atypical with the camera feed,
+which we achieved by using a birds-eye view camera instead of the more typical camera mounted on object. 
 
 #### Sam's learning goals: 
 The most important aspect of this project for me was having direct control over a task, working with a tangible robot to get something done. Although that meant we were pretty much limited to Neatos, it was totally worth it for how rewarding it was to get the full implementation working. Additionally, I wanted to practice more image processing skills step by step, being able to track each mask we applied to the image, rather than just running it through a predefined algorithm that spits out a result. 
