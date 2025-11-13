@@ -48,7 +48,7 @@ My two goals are (1) completing a robotics project with a bird-eye-view camera s
 ## Methodology Overview:   
 For this project, we decided to employ an architecture of two ROS nodes, namely `neato_tracker` and `sort_node`. `sort_node` handles the identification of multiple objects, and `neato_tracker` handles everything else. We will go over each node and the technical aspects below.
 
-### `neato_tracker`: 
+### `neato_tracker` node: 
 
 The `neato_tracker` node uses two concurrent threads to handle path planning and driving separately. Most of the functionality resides in the main loop, which runs continuously throughout, and signals the driving loop once it has done path planning. On the other hand, once the driving loop receives signal from the main loop, it sends `Twist` messages to the Neato through ROS, and stays dormant until the Neato reaches destination.
 
@@ -86,7 +86,15 @@ The path planning function calculates a two-waypoint trajectory that positions t
 
 To ensure the Neato has adequate space to align itself before contacting the ball, the function shifts the first waypoint an arbitrary amount of pixels backwards along the ball-to-target line. This creates a "staging position" where the Neato can orient itself perpendicular to the push direction. The second waypoint is set directly at the target location, meaning the Neato will drive through the ball and push it toward the target. The function sets a `planned` flag to true once the path is calculated, signaling to the driver thread that it can begin execution. This approach simplifies the control logic while ensuring the ball is pushed in the correct direction with sufficient momentum.
 
-### Final Result:   
+#### `go_to_pixel_coord()`
+
+This function serves as the low-level motion controller, translating pixel coordinates from the camera feed into actual robot movement commands. Running in a separate thread from the main loop, it receives target coordinates and uses the Neato's current pose (x, y, θ) to calculate the required rotation and translation to reach that position.
+
+The function operates in two distinct phases: rotation and translation. First, it calculates the angle difference between the Neato's current heading and the desired heading toward the target point, then rotates in place at a fixed angular velocity until aligned. The rotation direction is chosen to minimize the total rotation needed.
+
+Once properly oriented, the function converts the pixel distance to real-world meters using the `pixels_to_cm` scaling factor calculated in `find_contour()`, accounting for the camera's perspective. It then drives forward at a constant linear velocity for a calculated duration, stopping approximately before the target to account for the Neato's physical dimensions. This two-phase approach simplifies the control logic while providing reliable navigation to waypoints, though it does sacrifice the continuous tracking capabilities of the SORT algorithm during movement.
+
+### `SORT` node:  
 
 
 ## Design Decisions:   
