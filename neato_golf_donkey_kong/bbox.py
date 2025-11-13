@@ -7,7 +7,7 @@ are unique. Unique IDs of each object persist through time and movement.
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray, MultiArrayDimension, MultiArrayLayout
+from std_msgs.msg import Float32MultiArray
 import numpy as np
 from neato_golf_donkey_kong.helpers import numpy_to_multiarray
 
