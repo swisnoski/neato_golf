@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 from geometry_msgs.msg import Twist
 from std_msgs.msg import Float32MultiArray
-from neato_golf_donkey_kong.helpers import numpy_to_multiarray
+from neato_golf_donkey_kong.helpers import numpy_to_multiarray, multiarray_to_numpy
 
 
 class NeatoTracker(Node):
@@ -35,10 +35,16 @@ class NeatoTracker(Node):
         self.planned = False  # If the path planning has happened
         self.lines = []  # List of endpoints of lines
         self.path = []  # List of waypoints of the path
+        self.ball_id = 0  # Id of current ball the Neato is going after
+        self.ball_coord = []  # Coords of the current ball
 
         # Create Publishers
         self.vel_pub = self.create_publisher(Twist, "cmd_vel", 10)
         self.bbox_pub = self.create_publisher(Float32MultiArray, "bbox", 10)
+
+        self.sort_sub = self.create_subscription(
+            Float32MultiArray, "bbox", self.sort_process, 10
+        )
 
         thread = Thread(target=self.loop_wrapper)
         thread.start()
@@ -367,6 +373,24 @@ class NeatoTracker(Node):
 
         return cx, cy, w, h
 
+    def sort_process(self, msg):
+        """
+        Processes incoming message from SORT node.
+
+        Takes in a Float32Array message and converts it into a NumPy array
+        representing a list of objects and their associated unique id's. Updates
+        the class attribute ball_coord with the current ball coordinate.
+        """
+        ids = []
+        coords = []
+        array = multiarray_to_numpy(msg)
+        for ball in array:
+            ids.append(ball[0])
+            coords.append(ball[1:])
+        ball_dict = dict(zip(ids, coords))
+
+        self.ball_coord = ball_dict.get(self.ball_id)
+
     def find_line(self):
         """
         Finds straight lines in a binary image.
@@ -444,10 +468,10 @@ class NeatoTracker(Node):
         target coordinates for the Neato to allow for ample space to turn and
         capture the golf ball.
         """
-        if not self.balls or not self.target:
+        if not self.balls or not self.target or not self.ball_coord:
             print("No balls or no target, path not planned")
             return
-        x1, y1 = self.balls[0][0], self.balls[0][1]
+        x1, y1 = self.ball_coord[0], self.ball_coord[1]
         x2, y2 = self.target[0][0], self.target[0][1]
         print(f"x1: {x1}, x2: {x2}, y1: {y1}, y2: {y2}")
 
@@ -473,6 +497,7 @@ class NeatoTracker(Node):
 
 
 def main(args=None):
+    """Main function"""
     rclpy.init()
     n = NeatoTracker()
     rclpy.spin(n)
