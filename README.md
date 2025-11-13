@@ -46,6 +46,7 @@ Not convinced that Neato Golf will work for your needs? Videos of partial and fu
 ### Individual Learning Goals:
 While we each had different goals, overall, we were all very invested in achieving a nontrivial task, i.e. driving a Neato
 to capture an object and deliver it to a target, with classic computer vision methods and chaining them together. 
+
 #### Oscar's learning goals:
 For this project, I was very interested in converting the data from the software world into some concrete actions
 in real life. I've done my time with the `CV2` package by its own, and it was very fun, and challenging, building a data
@@ -59,13 +60,55 @@ The most important aspect of this project for me was having direct control over 
 My two goals are (1) completing a robotics project with a bird-eye-view camera setup and (2) implementing the Simple Online and Realtime (SORT) algorithm from scratch. Throughout my experience with robotics at Olin, the camera is commonly attached to the manipulated object (Neato or arm). However, I see potential in using stationary bird-eye-view cameras for tasks such as pose estimation and mapping, which also reduces the complexity of these tasks. This is most applicable in indoor applications. As for SORT, tracking is one domain of computer vision which I have always wanted to explore and haven't gotten the chance to. Through implementing it from scratch, I learned to break down an algorithm which had multiple steps, implemented them, and integrated them into one seamless process. In the future, I plan to implement the hungarian algorithm during the overlap process to further bolster the algorithm.
 
 ## Methodology Overview:   
-TBD after we finalize code 
+For this project, we decided to employ an architecture of two ROS nodes, namely `neato_tracker` and `sort_node`. `sort_node` handles the identification of multiple objects, and `neato_tracker` handles everything else. We will go over each node and the technical aspects below.
 
-### Main loop: 
+### `neato_tracker`: 
 
-#### Step 1: ...
+The `neato_tracker` node uses two concurrent threads to handle path planning and driving separately. Most of the functionality resides in the main loop, which runs continuously throughout, and signals the driving loop once it has done path planning. On the other hand, once the driving loop receives signal from the main loop, it sends `Twist` messages to the Neato through ROS, and stays dormant until the Neato reaches destination.
 
-#### Step 2: ...
+Specifically, our main loop consists of a sequence of modular functions each performing a specific task, together they make up the entirety of computer vision processing and calculation of waypoints. We will go over each function in both loops, and unless otherwise noted, they will be main loop functions.
+
+#### `find_neato()`, `find_ball()`, and `find_target()`
+
+#### `find_contour()`
+
+#### `find_line()`
+
+#### `find_heading()`
+
+#### `plan_path()`
+
+#### `find_neato()`, `find_ball()`, and `find_target()`
+
+These three functions form the core of our object detection pipeline, each responsible for identifying one of the three critical elements in our system: the Neato, the golf ball(s), and the target. Each function takes in the raw camera frame and applies specific color filtering techniques tailored to the visual characteristics of its target object.
+
+`find_neato()` uses a dark color range (blacks and dark grays) to identify the Neato's body in the frame. After applying the initial color filter, it employs a flood fill algorithm starting from the image borders to fill everything *outside* the Neato's boundary. By inverting this filled region and combining it with the original binary mask, we isolate just the Neato's filled silhouette, which becomes crucial for subsequent contour detection and heading calculation.
+
+`find_ball()` targets white-colored objects in the frame using RGB thresholding, then identifies contours to locate potential golf balls. For each valid detection (contours with at least 4 points), it calculates the bounding box and center coordinates, which are stored in a list and published to the SORT node via ROS for tracking. Similarly, `find_target()` converts the frame to HSV color space and filters for a specific yellow/orange range to detect our target hole, storing its coordinates for path planning. Both functions draw visual markers on the image for debugging purposes.
+
+#### `find_contour()`
+
+After isolating the Neato in the binary image through `find_neato()`, this function extracts the actual contour of the robot and calculates its center point, which serves as the robot's position in our coordinate system. The function filters out small noise artifacts by only keeping contours with an area greater than 2000 square pixels, ensuring we're detecting the actual Neato rather than shadows or floor imperfections.
+
+Using OpenCV's moments calculation, the function computes the centroid (center of mass) of the Neato's contour. This provides an accurate x,y coordinate for the robot's position in the pixel space. Additionally, the function calculates a scaling factor (`pixels_to_cm`) based on the Neato's known physical size (~1000 cm²), which allows us to convert between pixel coordinates and real-world distances for movement planning. This scaling factor is crucial for translating our pixel-based detections into meaningful motor commands.
+
+#### `find_line()`
+
+To determine the Neato's heading, we first need to identify the prominent straight edge along its body. This function applies Canny edge detection to the filled Neato image, then uses the Hough Line Transform (specifically `HoughLinesP`) to detect line segments in the edge-detected image. The threshold parameters are carefully tuned to detect only the main straight edge of the Neato while ignoring noise and minor edges.
+
+The function stores the endpoints of detected line segments and draws them on the display image for visual verification. By setting a relatively high threshold (90 votes) and allowing small gaps between line segments (10 pixels), we ensure that only substantial, continuous lines—like the Neato's straight edge—are detected, rather than fragmentary edges from shadows or texture variations.
+
+#### `find_heading()`
+
+Once `find_line()` has identified the straight edge of the Neato, this function calculates the robot's orientation angle using geometric principles. The function takes the endpoints of the detected line segment and calculates its slope, then computes the perpendicular slope to find the direction the Neato is facing (since the heading is perpendicular to the straight edge).
+
+Using the perpendicular slope and the Neato's center point from `find_contour()`, the function constructs a heading line and finds where it intersects with the Neato's edge line. The heading angle is then calculated using `arctan2` with respect to the center point and intersection point, accounting for the image coordinate system where positive y is downward. This angle is stored in radians as the third element of `neato_position`, providing the full pose (x, y, θ) needed for path planning and navigation.
+
+#### `plan_path()`
+
+The path planning function calculates a two-waypoint trajectory that positions the Neato to successfully push the golf ball into the target. Given the ball's coordinates (from SORT) and the target's coordinates (from `find_target()`), it first calculates the slope of the line connecting these two points, which represents the ideal push direction.
+
+To ensure the Neato has adequate space to align itself before contacting the ball, the function shifts the first waypoint 25 pixels backwards along the ball-to-target line. This creates a "staging position" where the Neato can orient itself perpendicular to the push direction. The second waypoint is set directly at the target location, meaning the Neato will drive through the ball and push it toward the hole. The function sets a `planned` flag to true once the path is calculated, signaling to the driver thread that it can begin execution. This approach simplifies the control logic while ensuring the ball is pushed in the correct direction with sufficient momentum.
 
 ### Final Result:   
 
@@ -78,7 +121,10 @@ One major design decision we faced was how to determine the Neato’s heading fr
 To do this, we decided to use OpenCV’s Hough Line Transform (thanks, Image Processing!) to detect the main line along the Neato’s body from the contour image. Once that line was found, we could calculate its slope and use a bit of algebraic geometry to determine the robot’s heading relative to its center point. Suprisingly, this took us a bit of time to get just right; trying to recall information about the law of sines and how to find the intersection of a line. But ultimately, this approach allowed us to estimate the Neato’s orientation entirely from visual information. As described in our goals, we were able to track both the position and heading of the Neato using only the camera feed, keeping the setup simple, self-contained, and true to the spirit of Donkey Kong.
 
 
-### Integrating SORT with Path Planning: 
+### Integrating SORT with Path Planning:
+Another design decision we had to make was how to integrate the SORT algorithm to the main detection and path planning module. In short, due to insufficient planning at the start, we had limited wiggle room in the path planning module to accomodate the SORT algorithm, and were unable to utilize the continuous tracking feature. More about that is discussed in [Challenges & Limitations](#challenges--limitiations) and [Potential Improvements](#potential-improvements) below. 
+
+While we couldn't incorporate the continuous tracking feature into the module, we did take advantage of the fact that SORT can track objects and give it unique IDs impervious to change in time or space. Therefore, at the start of each path planning loop, the module takes in the coordinates of one ball from SORT's output, and SORT is able to keep track of that ball and all of the other balls during the movement of the robot. We are therefore able to keep a list of balls we want to tackle, and the Neato is able to find the correct next ball after arriving at the target.
 
 
 ## Challenges & Limitiations:   
