@@ -18,17 +18,39 @@ In your code package create a README.md file to hold your project writeup. Your 
 ## Project Goals:      
 ### Introduction:  
 
+<p align="center">
+  <img src="media/donkey_kong_golf_1.jpg" alt="Donkey Kong Golfing" width="400">
+</p>
 
-Videos of partial and full implementations can be found here:
+Has this ever happened to you? You are playing golf against Donkey Kong, the greatest golf player to ever walk the earth. You've played a valient 17 holes, and are up by one point going into the 18th. But oh no! Donkey Kong shoots first, and gets a hole in one! To claim his legendary hoard of golden bananas (the biggest hoard east of the Mississippi) you must match his shot. How could you possibly make that happen? If you're nodding your head along, also having expereinced this common scenario, then we have the solution for you. 
+
+**Let us introduce you to Neato Golf: our autonomous golf assistant that ensures you never miss the hole again.**
+
+<p align="center">
+  <img src="media/neato_golf_bot.png" alt="Neato Golf Bot and Target" width="400">
+</p>
+
+The goal of our project was to design and implement an autonomous robotic system capable of locating a golf ball within a predefined area and pushing it onto our target. We wanted to explore how computer vision, object tracking, and motion planning could be combined to complete a task. Additionally, we had a few extra constraints when defining our project goal:
+* We wanted to use a camera that was not attached to the robot, but could still capture robotic movement.
+* We wanted to use entirely CV to do our detection, without having to rely on odometry (or any other sensor) data.
+* We wanted to practice working in a (relatively) controlled enviornment.
+* We wanted to implement an algorithm to allow detection of multiple golf balls at once. 
+  
+With the above constraints in mind, our solution is as follows: using a bird's-eye-view camera, our CV algorithm identifies the ball, the hole, and the Neato robot’s position (x, y, and heading). Then, with a SORT tracking algorithm and a simple path planner, it directs the robot to nudge the ball into the target. In essence, our project takes the final shot of golf out of your hands, and into more than capable end effector of our robot As long as you can get your ball to that green, you're golden... as golden as a golden banana. 
+
+Not convinced that Neato Golf will work for your needs? Videos of partial and full implementations can be found here:
+* Using SORT to track multiple balls: https://drive.google.com/file/d/1GgMcts5O3wgErzWKcIJOUZaHiJTX-XAM/view?resourcekey 
+* Video of Neato Golf successfully getting a "hole in one": https://drive.google.com/file/d/1KUzkdHAsaL157LKygHP7LB2IOXnDMdcI/view?resourcekey 
 
 
 ### Individual Learning Goals:   
-
 #### Oscar's learning goals: 
 
-#### Sam's learning goals:
+#### Sam's learning goals: 
+The most important aspect of this project for me was having direct control over a task, working with a tangible robot to get something done. Although that meant we were pretty much limited to Neatos, it was totally worth it for how rewarding it was to get the full implementation working. Additionally, I wanted to practice more image processing skills step by step, being able to track each mask we applied to the image, rather than just running it through a predefined algorithm that spits out a result. 
 
 #### Bill's learning goals:
+
 
 ## Methodology Overview:   
 
@@ -52,6 +74,6 @@ Videos of partial and full implementations can be found here:
 ## Limitations & Potential Improvements:   
 
 ## Conclusion:  
-#### How It Went:
+### How It Went:
 
-#### Lessons Learned: 
+### Lessons Learned: 
