@@ -67,10 +67,12 @@ TBD after we finalize code
 ## Design Decisions:   
 
 ### Calculating the Neato Heading: 
-One major design decision we faced was how to determine the Neato’s heading from soley the camera feed. When first approaching this problem, we considered several options: attaching an apriltag to the robot, using PID control to direct it to each location, or (likely the easiest solution) just using odom data. However, our project goals including not relying on the information from the sensors of the robot and using only CV as much as possible. Since we already needed to get a contour of our Neato in order to find the center, we figured we were more than capable of also finding the heading. To do this, we decided to use OpenCV’s Hough Line Transform (thanks, Image Processing!) to detect the main line along the Neato’s body from the contour image. Once that line was found, we could calculate its slope and use a bit of geometry to determine the robot’s heading angle relative to its center point. Suprisingly, this took us a bit of time to get just right; trying to recall information about the law of sines and how to find the intersection of a line. This approach allowed us to estimate the Neato’s orientation entirely from visual information, without relying on any onboard sensors or additional markers. We were able to track both the position and heading of the Neato using only the camera feed—keeping the setup simple, self-contained, and true to the spirit of our project.
+One major design decision we faced was how to determine the Neato’s heading from soley the camera feed. When first approaching this problem, we considered several options: attaching an apriltag to the robot, using PID control to direct it to each location, or (likely the easiest solution) just using odom data. However, our project goals including not relying on the information from the sensors of the robot and using only CV as much as possible. Since we already needed to get a contour of our Neato in order to find the center, we figured we were more than capable of also finding the heading. 
+
+To do this, we decided to use OpenCV’s Hough Line Transform (thanks, Image Processing!) to detect the main line along the Neato’s body from the contour image. Once that line was found, we could calculate its slope and use a bit of algebraic geometry to determine the robot’s heading relative to its center point. Suprisingly, this took us a bit of time to get just right; trying to recall information about the law of sines and how to find the intersection of a line. But ultimately, this approach allowed us to estimate the Neato’s orientation entirely from visual information. As described in our goals, we were able to track both the position and heading of the Neato using only the camera feed, keeping the setup simple, self-contained, and true to the spirit of Donkey Kong.
 
 
-### Implimenting Sort with Path Planning: 
+### Itegrating SORT with Path Planning: 
 
 
 ## Challenges:   
