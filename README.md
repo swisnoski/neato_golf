@@ -5,7 +5,7 @@ Writeup (Due 11/11 at 7PM)Permalink
 In your code package create a README.md file to hold your project writeup. Your writeup should touch on the following topics. We expect this writeup to be done in such a way that you are proud to include it as part of your professional portfolio. As such, please make sure to write the report so that it is understandable to an external audience. Make sure to add pictures to your report, links to Youtube videos, embedded animated Gifs (these can be recorded with the tool peek).
 
     What was the goal of your project? Since everyone is doing a different project, you will have to spend some time setting this context.
-    How did you solve the problem (i.e., what methods / algorithms did you use and how do they work)? As above, since not everyone will be familiar with the algorithms you have chosen, you will need to spend some time explaining what you did and how everything works.
+    How did you solve the problem (i.e., what methods / algorithms did you use and how do they work)? As above, since not everyone will be familiar with the algorithms you have chosen, you will need to spend some xtime explaining what you did and how everything works.
     Describe a design decision you had to make when working on your project and what you ultimately did (and why)? These design decisions could be particular choices for how you implemented some part of an algorithm or perhaps a decision regarding which of two external packages to use in your project.
     What if any challenges did you face along the way?
     What would you do to improve your project if you had more time?
@@ -22,7 +22,7 @@ In your code package create a README.md file to hold your project writeup. Your 
   <img src="media/donkey_kong_golf_1.jpg" alt="Donkey Kong Golfing" width="400">
 </p>
 
-Has this ever happened to you? You are playing golf against Donkey Kong, the greatest golf player to ever walk the earth. You've played a valient 17 holes, and are up by one point going into the 18th. But oh no! Donkey Kong shoots first, and gets a hole in one! To claim his legendary hoard of golden bananas (the biggest hoard east of the Mississippi) you must match his shot. How could you possibly make that happen? If you're nodding your head along, also having expereinced this common scenario, then we have the solution for you. 
+Has this ever happened to you? You are playing golf against Donkey Kong, the greatest golf player to ever walk the earth. You've played a valiant 17 holes, and are up by one point going into the 18th. But oh no! Donkey Kong shoots first, and gets a hole in one! To claim his legendary hoard of golden bananas (the biggest hoard east of the Mississippi) you must match his shot. How could you possibly make that happen? If you're nodding your head along, also having experienced this common scenario, then we have the solution for you. 
 
 **Let us introduce you to Neato Golf: our autonomous golf assistant that ensures you never miss the hole again.**
 

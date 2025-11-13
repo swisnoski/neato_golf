@@ -1,47 +1,50 @@
-import rclpy
+"""Main module for tracking and driving the Neato, contains a ROS node"""
+
 from threading import Thread
-from rclpy.node import Node
 import time
 import math
+from rclpy.node import Node
+import rclpy
 import cv2
 import numpy as np
 from geometry_msgs.msg import Twist
-from neato_golf_donkey_kong.helpers import numpy_to_multiarray
 from std_msgs.msg import Float32MultiArray
-from geometry_msgs.msg import PoseArray, Pose, Point, Quaternion
+from neato_golf_donkey_kong.helpers import numpy_to_multiarray
 
 
 class NeatoTracker(Node):
-    """The BallTracker is NOT a Python object that encompasses a ROS node
-    that can NOT process images from the camera and NOT search for a ball within.
-    The node will NOT issue motor commands to move forward while NOT keeping
-    the ball in the center of the camera's field of view."""
+    """The NeatoTracker is a Python object that encompasses a ROS node
+    that can process images from the camera and search for a *golf* ball within,
+    and a Neato, and a target.
+    The node will issue motor commands to move while keeping the everything in the
+    camera's field of view."""
 
     def __init__(self):
         """Initialize the neator tracker"""
         super().__init__("neato_tracker")
-        self.neato_position = [0, 0, 0]
-        self.pixels_to_cm = 0
+        self.neato_position = [0, 0, 0]  # only uses x and y
+        self.pixels_to_cm = 0  # scaling factor depending on distance to ground
 
         self.camera = cv2.VideoCapture(0)
         self.cv_image = None  # the latest image from the camera
-        self.binary_image = None
-        self.filled_image = None
-        self.canny = None
-        self.balls = []
-        self.target = []
-        self.planned = False
+        self.binary_image = None  # binary image of the cv_image
+        self.filled_image = None  # filtered to only include the Neato
+        self.edge_image = None  # Canny processed image
+        self.balls = []  # Potential ball coordinates
+        self.target = []  # Potential target coordinates
+        self.planned = False  # If the path planning has happened
+        self.lines = []  # List of endpoints of lines
+        self.path = []  # List of waypoints of the path
 
         # Create Publishers
         self.vel_pub = self.create_publisher(Twist, "cmd_vel", 10)
         self.bbox_pub = self.create_publisher(Float32MultiArray, "bbox", 10)
-        self.waypoints_pub = self.create_publisher(PoseArray, "waypoints", 10)
 
         thread = Thread(target=self.loop_wrapper)
         thread.start()
 
-        self.driver_thread = Thread(target=self.driver_wrapper)
-        self.driver_thread.start()
+        driver_thread = Thread(target=self.driver_wrapper)
+        driver_thread.start()
 
     def loop_wrapper(self):
         """This function takes care of calling the run_loop function repeatedly.
@@ -89,26 +92,28 @@ class NeatoTracker(Node):
             time.sleep(0.1)
 
     def driver_wrapper(self):
+        """This function takes care of sending the driving commands to the Neato.
+        We are using a separate thread to run the loop_wrapper to work around
+        issues with single threaded executors in ROS2"""
         index = 1
-        while True: 
-            if self.balls and self.planned:
+        while True:
+            if self.balls and self.planned:  # Ball deteted and path planned
                 if index % 100 == 0:
                     print(self.balls)
                     print("GO GO GO")
-                    # self.go_to_pixel_coord(self.balls[0][0], self.balls[0][1])
                     self.go_to_pixel_coord(self.path[0][0], self.path[0][1])
                     self.go_to_pixel_coord(self.path[1][0], self.path[1][1])
-                    # self.go_to_pixel_coord(222, 200)
             index += 1
             time.sleep(0.1)
             print("Index: ", index)
 
-
     def run_loop(self):
+        """This function takes care of doing all the cv2 related tasks,
+        including showing the images and reading the new frame from the camera."""
         # NOTE: only do cv2.imshow and cv2.waitKey in this function
         if not self.cv_image is None:
             cv2.imshow("video_window", self.cv_image)
-            cv2.imshow("canny", self.canny)
+            cv2.imshow("canny", self.edge_image)
 
             cv2.imshow("binary_window", self.binary_image)
             cv2.imshow("filtered_neato_window", self.filled_image)
@@ -126,15 +131,15 @@ class NeatoTracker(Node):
             desired_x (float): Target X position in PIXELS
             desired_y (float): Target Y position in PIXELS
         """
+        ANGULAR_VEL = 0.3
+        LIN_VELOCITY = 0.05
+
         current_pixel_x, current_pixel_y, current_angle = self.neato_position
 
         # print("Current x is: ", current_x)
         # print("Current y is: ", current_y)
         # print("Des x is: ", desired_x)
         # print("Des y is: ", desired_y)
-
-        # First, we calculate the desired orientation to drive in
-        # odom gives us quanternion, not yaw (z direction)
 
         # calculate x and y from PIXELS to METERS
         x = (desired_pixel_x - current_pixel_x) * (1 / self.pixels_to_cm) * 0.01
@@ -145,30 +150,28 @@ class NeatoTracker(Node):
         desired_angle = math.atan2(y, x)
         print(current_angle, desired_angle)
 
+        # Calculate current and desired angle
         current_angle = current_angle % (2 * math.pi)
         desired_angle = desired_angle % (2 * math.pi)
 
         rotation_needed = (desired_angle - current_angle) % (2 * math.pi)
 
-        angular_vel = 0.3
-        lin_velocity = 0.05
-
         # then we can perform our actual rotation
         if rotation_needed < math.pi:
-            self.drive(linear=0.0, angular=angular_vel)
-            time.sleep((rotation_needed / angular_vel))
+            self.drive(linear=0.0, angular=ANGULAR_VEL)
+            time.sleep((rotation_needed / ANGULAR_VEL))
 
         else:
             rotation_needed = 2 * math.pi - rotation_needed
-            self.drive(linear=0.0, angular=-angular_vel)
-            time.sleep((rotation_needed / angular_vel))
+            self.drive(linear=0.0, angular=-ANGULAR_VEL)
+            time.sleep((rotation_needed / ANGULAR_VEL))
         self.drive(linear=0.0, angular=0.0)
 
         # calculate needed distance and drive forward
         distance = math.sqrt((x) ** 2 + (y) ** 2) - 0.15
         print(distance)
-        self.drive(linear=lin_velocity, angular=0.0)
-        time.sleep((distance / lin_velocity))
+        self.drive(linear=LIN_VELOCITY, angular=0.0)
+        time.sleep((distance / LIN_VELOCITY))
 
         # set speed to zero
         self.drive(linear=0.0, angular=0.0)
@@ -187,20 +190,34 @@ class NeatoTracker(Node):
         self.vel_pub.publish(msg)
 
     def find_neato(self):
+        """
+        Filters binary image to just Neato, then fills it
 
+        This function takes in the raw frame from the camera and does color filtering
+        to get its binary image. It then fills every pixel outside of the Neato boundary,
+        inverses the binary, and now we have a binary image with just the Neato filled.
+        """
+
+        # Color filter
         self.binary_image = cv2.inRange(self.cv_image, (0, 0, 0), (120, 110, 100))
 
+        # Image processing magic
         filled_neato_frame = self.binary_image.copy()
         h, w = self.cv_image.shape[:2]
         mask = np.zeros((h + 2, w + 2), np.uint8)
         cv2.floodFill(filled_neato_frame, mask, (0, 0), 255)
         inv_filled_neato_frame = cv2.bitwise_not(filled_neato_frame)
 
+        # Invert filled image so only the Neato is filled
         self.filled_image = self.binary_image | inv_filled_neato_frame
 
     def find_ball(self):
         """
-        Using camera data, find bbox of ball(s)
+        Using camera data, find bounding box of ball(s).
+
+        Takes in raw image data from the camera, then uses color filters to identify
+        the golf ball(s) in the frame. Appending all of their pixel coordinates and
+        bounding boxes into a list for further processing.
         """
         # Mask specific range of white
         lower_white = np.array([220, 220, 220])  # Adjust these values
@@ -208,9 +225,7 @@ class NeatoTracker(Node):
         mask = cv2.inRange(self.cv_image, lower_white, upper_white)
 
         # Find contours in mask
-        contours, hierarchy = cv2.findContours(
-            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # Get center, width, and height from contours
         bbox = []
@@ -234,7 +249,11 @@ class NeatoTracker(Node):
 
     def find_target(self):
         """
-        Using camera data, find bbox of final ball location target
+        Using camera data, find bounding box of the target.
+
+        Takes in raw image data from the camera, then uses color filters to identify
+        the target in the frame. Storing its coordinates and bounding box for further
+        processing.
         """
         # Convert to HSV
         lower_white = np.array([20, 100, 175])  # Adjust these values as needed
@@ -245,9 +264,7 @@ class NeatoTracker(Node):
         mask = cv2.inRange(frame_hsv, lower_white, upper_white)
 
         # Find contours in mask
-        contours, hierarchy = cv2.findContours(
-            mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # Loop through individual contours
         detections = []
@@ -265,7 +282,14 @@ class NeatoTracker(Node):
             self.target = [detections[0]]
 
     def find_contour(self):
-        # find contours in the thresholded image
+        """
+        Find contours in the thresholded image.
+
+        Takes in the thresholded (filled) image, find the contour of shapes
+        in the image, and only fills shapes above a certain size, effectively
+        filtering out the Neato. Then identifies the moments of the image and
+        locates the center of the Neato.
+        """
         AREA_CONST = 2000
         cnts, _ = cv2.findContours(
             self.filled_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
@@ -287,8 +311,8 @@ class NeatoTracker(Node):
 
         if len(cnts) == 1:
             self.pixels_to_cm = math.sqrt(cv2.contourArea(cnts[0]) / 1000)
-            print(self.pixels_to_cm)
-            print(self.neato_position)
+            print(f"Scaling ratio: {self.pixels_to_cm}")
+            print(f"Neato position: {self.neato_position}")
 
         # Apply the mask to keep only large regions
         self.filled_image = cv2.bitwise_and(self.filled_image, mask)
@@ -329,9 +353,12 @@ class NeatoTracker(Node):
 
     def bbox_chw(self, pts):
         """
-        Returns
+        Takes in points and returns the bounding box of the rectangle it represents.
+
+        Returns:
+
         (cx, cy, w, h)
-            cx, cy : centre coordinates
+            cx, cy : center coordinates
             w, h   : width and height
         """
         x, y, w, h = cv2.boundingRect(pts)
@@ -341,12 +368,19 @@ class NeatoTracker(Node):
         return cx, cy, w, h
 
     def find_line(self):
+        """
+        Finds straight lines in a binary image.
+
+        This function takes in a binary image, uses Canny to perform edge detection,
+        then uses the HoughLinesP method to directly obtain end points of lines, with
+        the threshold set so that only the straight edge of the Neato would be detected.
+        """
         # Apply HoughLinesP method to
         # to directly obtain line end points
         lines_list = []
-        self.canny = cv2.Canny(self.filled_image, 000, 50)
+        self.edge_image = cv2.Canny(self.filled_image, 000, 50)
         lines = cv2.HoughLinesP(
-            self.canny,  # Input edge image
+            self.edge_image,  # Input edge image
             1,  # Distance resolution in pixels
             np.pi / 180,  # Angle resolution in radians
             threshold=90,  # Min number of votes for valid line
@@ -355,7 +389,7 @@ class NeatoTracker(Node):
         )
 
         # Iterate over points
-        if lines is not None:
+        if lines is not None:  # If there are lines
             print(f"Length: {len(lines)}")
             for points in lines:
                 # Extracted points nested in the list
@@ -370,6 +404,13 @@ class NeatoTracker(Node):
         self.lines = lines
 
     def find_heading(self):
+        """
+        Finds heading of a Neato based on the endpoints of the straight edge.
+
+        This function takes in one pair of endpoints representing a line segment
+        of the straight edge of the Neato, then finds its slope and its inverse,
+        calculates the true heading of the Neato using arctan2.=
+        """
         if self.lines is None:
             print("No line to find heading for")
             return
@@ -385,15 +426,24 @@ class NeatoTracker(Node):
 
         slope_neato = (y2 - y1) / (x2 - x1)
         slope_heading = -(1 / slope_neato)
-        b_heading = cy - slope_heading * cx
+        b_heading = cy - slope_heading * cx  # y = mx + b
         b_neato = y1 - slope_neato * x1
+        # Find the intersecting point of two lines
         x_intersect = (b_heading - b_neato) / (slope_neato - slope_heading)
         y_intersect = slope_neato * x_intersect + b_neato
+        # Flips y because down is positive
         angle = np.arctan2(cy - y_intersect, x_intersect - cx)
         print(f"ANGLE: {angle}")
         self.neato_position[2] = angle
 
     def plan_path(self):
+        """
+        Plans path given coordinates of the golf ball and target.
+
+        Takes in the coordinates of the golf ball and target, then finds the
+        target coordinates for the Neato to allow for ample space to turn and
+        capture the golf ball.
+        """
         if not self.balls or not self.target:
             print("No balls or no target, path not planned")
             return
@@ -410,6 +460,7 @@ class NeatoTracker(Node):
 
         shift_x = 25 * unit_x  # Calculate shift of 10 units along the line
 
+        # Shifts the coordinate depending on Neato's relative location to the ball
         if x2 > x1:
             x_dest = x1 - shift_x
         else:
@@ -419,25 +470,6 @@ class NeatoTracker(Node):
         self.path = [[x_dest, y_dest], [x2, y2]]
         self.planned = True
         print("PATH PLANNED")
-
-        # # Create PoseArray message
-        # pose_array = PoseArray()
-        # pose_array.header.frame_id = "map"  # or appropriate frame
-        # pose_array.header.stamp = self.get_clock().now().to_msg()
-
-        # # First pose: x_dest, y_dest, 0
-        # pose1 = Pose()
-        # pose1.position = Point(x=float(x_dest), y=float(y_dest), z=0.0)
-        # # pose1.orientation = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
-
-        # # Second pose: x2, y2, 0
-        # pose2 = Pose()
-        # pose2.position = Point(x=float(x2), y=float(y2), z=0.0)
-        # # pose2.orientation = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0)
-
-        # pose_array.poses = [pose1, pose2]
-
-        # self.waypoints_pub.publish(pose_array)
 
 
 def main(args=None):

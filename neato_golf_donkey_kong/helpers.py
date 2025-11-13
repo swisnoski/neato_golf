@@ -1,3 +1,5 @@
+"""Helper functions"""
+
 import numpy as np
 from std_msgs.msg import Float32MultiArray, MultiArrayDimension
 
