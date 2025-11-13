@@ -23,7 +23,7 @@ class NeatoTracker(Node):
         self.neato_position = [0, 0, 0]
         self.pixels_to_cm = 0
 
-        self.camera = cv2.VideoCapture(4)
+        self.camera = cv2.VideoCapture(0)
         self.cv_image = None  # the latest image from the camera
         self.binary_image = None
         self.filled_image = None
@@ -40,6 +40,9 @@ class NeatoTracker(Node):
         thread = Thread(target=self.loop_wrapper)
         thread.start()
 
+        self.driver_thread = Thread(target=self.driver_wrapper)
+        self.driver_thread.start()
+
     def loop_wrapper(self):
         """This function takes care of calling the run_loop function repeatedly.
         We are using a separate thread to run the loop_wrapper to work around
@@ -55,7 +58,7 @@ class NeatoTracker(Node):
             rval = False
             print("camera cannot be read")
 
-        index = 1
+        # index = 1
         while rval:
             self.find_neato()
             self.find_ball()
@@ -66,8 +69,30 @@ class NeatoTracker(Node):
             self.run_loop()
             print(self.balls)
             self.plan_path()
+            # if self.balls and self.planned:
+            #     if index % 50 == 0:
+            #         print(self.balls)
+            #         print("GO GO GO")
+            #         # self.go_to_pixel_coord(self.balls[0][0], self.balls[0][1])
+            #         self.go_to_pixel_coord(self.path[0][0], self.path[0][1])
+            #         self.find_neato()
+            #         self.find_ball()
+            #         self.find_target()
+            #         self.find_contour()
+            #         self.find_line()
+            #         self.find_heading()
+            #         self.run_loop()
+            #         self.go_to_pixel_coord(self.path[1][0], self.path[1][1])
+            #         # self.go_to_pixel_coord(222, 200)
+            # index += 1
+            # print(index)
+            time.sleep(0.1)
+
+    def driver_wrapper(self):
+        index = 1
+        while True: 
             if self.balls and self.planned:
-                if index % 50 == 0:
+                if index % 100 == 0:
                     print(self.balls)
                     print("GO GO GO")
                     # self.go_to_pixel_coord(self.balls[0][0], self.balls[0][1])
@@ -75,8 +100,9 @@ class NeatoTracker(Node):
                     self.go_to_pixel_coord(self.path[1][0], self.path[1][1])
                     # self.go_to_pixel_coord(222, 200)
             index += 1
-            print(index)
             time.sleep(0.1)
+            print("Index: ", index)
+
 
     def run_loop(self):
         # NOTE: only do cv2.imshow and cv2.waitKey in this function
@@ -125,7 +151,7 @@ class NeatoTracker(Node):
         rotation_needed = (desired_angle - current_angle) % (2 * math.pi)
 
         angular_vel = 0.3
-        lin_velocity = 0.2
+        lin_velocity = 0.05
 
         # then we can perform our actual rotation
         if rotation_needed < math.pi:
@@ -139,7 +165,7 @@ class NeatoTracker(Node):
         self.drive(linear=0.0, angular=0.0)
 
         # calculate needed distance and drive forward
-        distance = math.sqrt((x) ** 2 + (y) ** 2) - 0.1
+        distance = math.sqrt((x) ** 2 + (y) ** 2) - 0.15
         print(distance)
         self.drive(linear=lin_velocity, angular=0.0)
         time.sleep((distance / lin_velocity))
@@ -382,7 +408,7 @@ class NeatoTracker(Node):
         length = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
         unit_x = (x2 - x1) / length
 
-        shift_x = 10 * unit_x  # Calculate shift of 10 units along the line
+        shift_x = 25 * unit_x  # Calculate shift of 10 units along the line
 
         if x2 > x1:
             x_dest = x1 - shift_x
