@@ -55,7 +55,7 @@ The `neato_tracker` node uses two concurrent threads to handle path planning and
 Specifically, our main loop consists of a sequence of modular functions each performing a specific task, together they make up the entirety of computer vision processing and calculation of waypoints. We will go over each function in both loops, and unless otherwise noted, they will be main loop functions.
 
 <p align="center">
-  <img src="media/technical_approach.jpg" alt="Our Technical Approach" width="700">
+  <img src="media/technical_approach.jpg" alt="Our Technical Approach" width="800">
 </p>
 
 #### `find_neato()`, `find_ball()`, and `find_target()`
@@ -111,6 +111,10 @@ Once properly oriented, the function converts the pixel distance to real-world m
 ### `SORT` node:  
 
 The SORT algorithm is a lightweight tracking method that associates object detections across frames, assigning each object a unique ID for continuous tracking. It’s fast, simple, and widely used in real-time computer vision applications.
+
+<p align="center">
+  <img src="media/sort.jpg" alt="Sort Outline" width="1000">
+</p>
 
 #### Step 1: Detection
 
@@ -172,7 +176,7 @@ After all matches are processed, the code checks for unmatched detections, objec
 
 This ensures that every visible object receives a tracker, maintaining full coverage of the scene. Each new track starts with zero velocity, which will be updated in subsequent frames once motion is observed.
 
-#### Step 5: Removing retired objects
+#### Step 6: Removing retired objects
 
 The final part of the loop manages track lifecycle, specifically, retiring tracks when they are no longer detected. Tracks that fail to match any detection for 10 consecutive frames are removed.
 
