@@ -50,7 +50,7 @@ Not convinced that Neato Golf will work for your needs? Videos of partial and fu
 The most important aspect of this project for me was having direct control over a task, working with a tangible robot to get something done. Although that meant we were pretty much limited to Neatos, it was totally worth it for how rewarding it was to get the full implementation working. Additionally, I wanted to practice more image processing skills step by step, being able to track each mask we applied to the image, rather than just running it through a predefined algorithm that spits out a result. 
 
 #### Bill's learning goals:
-
+My two goals are (1) completing a robotics project with a bird-eye-view camera setup and (2) implementing the Simple Online and Realtime (SORT) algorithm from scratch. Throughout my experience with robotics at Olin, the camera is commonly attached to the manipulated object (Neato or arm). However, I see potential in using stationary bird-eye-view cameras for tasks such as pose estimation and mapping, which also reduces the complexity of these tasks. This is most applicable in indoor applications. As for SORT, tracking is one domain of computer vision which I have always wanted to explore and haven't gotten the chance to. Through implementing it from scratch, I learned to break down an algorithm which had multiple steps, implemented them, and integrated them into one seamless process. In the future, I plan to implement the hungarian algorithm during the overlap process to further bolster the algorithm.
 
 ## Methodology Overview:   
 TBD after we finalize code 
