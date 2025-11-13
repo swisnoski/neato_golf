@@ -24,7 +24,7 @@ The goal of our project was to design and implement an autonomous robotic system
   
 With the above constraints in mind, our solution is as follows: using a bird's-eye-view camera, our CV algorithm identifies the ball, the hole, and the Neato robot’s position (`x`, `y`, and `heading`). Then, with a SORT tracking algorithm and a simple path planner, it directs the robot to nudge the ball into the target. In essence, our project takes the final shot of golf out of your hands, and puts it into the more than capable end-effector of our robot. As long as you can get your ball to that green, you're *golden*... as golden as a golden banana. 
 
-Not convinced that Neato Golf will work for your needs? Videos of partial and full implementations can be found here:
+Not convinced that Neato Golf will work for your needs? Videos of SORT and the final implementation can be found here:
 * [Using SORT to track multiple balls](https://drive.google.com/file/d/1GgMcts5O3wgErzWKcIJOUZaHiJTX-XAM/view?resourcekey)
 * [Video of Neato Golf successfully getting a "hole in one"](https://drive.google.com/file/d/1KUzkdHAsaL157LKygHP7LB2IOXnDMdcI/view?resourcekey)
 
