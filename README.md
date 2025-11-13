@@ -1,17 +1,3 @@
-# RUBRIC: 
-
-Writeup (Due 11/11 at 7PM)Permalink
-
-In your code package create a README.md file to hold your project writeup. Your writeup should touch on the following topics. We expect this writeup to be done in such a way that you are proud to include it as part of your professional portfolio. As such, please make sure to write the report so that it is understandable to an external audience. Make sure to add pictures to your report, links to Youtube videos, embedded animated Gifs (these can be recorded with the tool peek).
-
-    What was the goal of your project? Since everyone is doing a different project, you will have to spend some time setting this context.
-    How did you solve the problem (i.e., what methods / algorithms did you use and how do they work)? As above, since not everyone will be familiar with the algorithms you have chosen, you will need to spend some xtime explaining what you did and how everything works.
-    Describe a design decision you had to make when working on your project and what you ultimately did (and why)? These design decisions could be particular choices for how you implemented some part of an algorithm or perhaps a decision regarding which of two external packages to use in your project.
-    What if any challenges did you face along the way?
-    What would you do to improve your project if you had more time?
-    Did you learn any interesting lessons for future robotic programming projects? These could relate to working on robotics projects in teams, working on more open-ended (and longer term) problems, or any other relevant topic.
-
-# DRAFT WRITEUP
 # Neato Golf (ft. Donkey Kong)
 ### Bill Le, Oscar Bao, Sam Wisnoski
 
@@ -118,6 +104,10 @@ To ensure the Neato has adequate space to align itself before contacting the bal
 ### Calculating the Neato Heading: 
 One major design decision we faced was how to determine the Neato’s heading from soley the camera feed. When first approaching this problem, we considered several options: attaching an apriltag to the robot, using PID control to direct it to each location, or (likely the easiest solution) just using odom data. However, our project goals including not relying on the information from the sensors of the robot and using only CV as much as possible. Since we already needed to get a contour of our Neato in order to find the center, we figured we were more than capable of also finding the heading. 
 
+<p align="center">
+  <img src="media/heading.jpg" alt="Calculation from heading given contour" width="300">
+</p>
+
 To do this, we decided to use OpenCV’s Hough Line Transform (thanks, Image Processing!) to detect the main line along the Neato’s body from the contour image. Once that line was found, we could calculate its slope and use a bit of algebraic geometry to determine the robot’s heading relative to its center point. Suprisingly, this took us a bit of time to get just right; trying to recall information about the law of sines and how to find the intersection of a line. But ultimately, this approach allowed us to estimate the Neato’s orientation entirely from visual information. As described in our goals, we were able to track both the position and heading of the Neato using only the camera feed, keeping the setup simple, self-contained, and true to the spirit of Donkey Kong.
 
 
@@ -133,7 +123,7 @@ We had a few small hiccups in our project, mostly due to variations in enviornme
 Let's start with the smaller challenges, where most of our limitations come from. When setting up and testing out our camera for the first time, we noticed that we could only got a few feet of floor space to drive around it, even with the camera suspended ~7 feet off the ground. Additionally, we noticed that our initial detection functions were very finicky with light, and would only work properly is we placed the camera over areas with less glare and no floor traps. We were able to solve some of these problems by filtering out smaller detected shapes and narrowing our ranges of detection, but it still functions much worse in dim lighting or certain areas of the floor. As for the amount of floor space detected, we tried a few different setups to limited success. My favorite setup is pictured below. 
 
 <p align="center">
-  <img src="media/neato_setup.jpg" alt="Our camera setup to maximize height while still being able to connect our computer" width="400">
+  <img src="media/neato_setup.jpg" alt="Our camera setup to maximize height while still being able to connect our computer" width="300">
 </p>
 
 And now, moving onto system integration. Learning from past projects, we decided to go with a more modular approach to our system, defining each part (neato detection, ball/target detection, SORT, driving the neato) individually before integrating fully. We hoped that this would allow us to better test/debug our system and prevent frustration when an error pops up and we have no clue where it's coming from. Our strategy did largely mitigate this problem, but vastly underestimated the extra time it would take to properly implement each leg of the project together, especially when it came to SORT and path planning. 
@@ -150,5 +140,13 @@ One last potential improvement will be to fine-tune our detection of the objects
 
 ## Conclusion:  
 ### How It Went:
+You line up the winning shot, sweat dripping down your forehead. You glance over at Donkey Kong, who is smiling confidently while staring you down. You smile back, for you know you're going to win. You swing, the ball flying 180 yards and landing on the green. It rolls. It rolls a little further. It looks like it's about to stop... but suddenly, miraculously, it keeps moving forward! Directly into the hole! It's a hole in one! You've beaten the reigning champion, forever sementing your place in the U.S. Golf Hall of Fame. 
+
+<p align="center">
+  <img src="media/donkey_kong_angry.gif" alt="An angry kong." width="400">
+</p>
+
+Overall, the project went quite well. We met each of our learning goals while having fun with the project and working well as a team. We were able to achieve reliable ball and target detection, consistent Neato tracking, and partial integration of the SORT algorithm with motion control. As with all personally directed projects, we wish we had more time to improve the project, but the core objective of pushing a golf ball into a target (using only computer vision!) was a success.
 
 ### Lessons Learned: 
+Throughout this project, we were able to better our technical skills regarding images as data, image processing, the OpenCV library, multithreaded systems, the SORT algorithm, basic algebra and many other key robotics ideas. In debugging, we learned how to balance modularity and full integration, and have learned a key lesson about how to better scope a project timeline (hint: don't wait until last minute to integrate). We also learned the importance of testing early, especially with real-world conditions, since small environmental changes can be difficult to manage. And finally, as always, this project reinforced our collaboration, our problem-solving skills, and our collective love of Donkey Kong. 
